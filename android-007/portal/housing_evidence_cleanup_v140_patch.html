@@ -1,0 +1,54 @@
+<style id="housingEvidenceV140Style">
+.hh140-legacy{border:1px solid #846d36;background:#342a14;color:#f1cf79;border-radius:9px;padding:7px 10px;font-weight:800}
+.hh140-done{display:inline-flex;padding:5px 8px;border-radius:999px;background:#15392b;color:#83e2b2;font-size:11px}
+.hh140-wait{color:#8fa2b9;font-size:11px}
+</style>
+<script id="housingEvidenceV140Script">
+(function(){
+'use strict';
+let busy=false;
+const admin=()=>!!window.me&&(['OWNER','ADMIN','REVIEWER'].includes(window.me.role)||window.me.can_see_internal===true);
+function panel(){const root=document.getElementById('hh132Body');if(!root)return null;return [...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.includes('إثبات الساعات حسب فترة الحساب'))||null}
+function parsePeriod(s){const m=String(s||'').match(/(\d{4}-\d{2}-\d{2})\s*[→-]\s*(\d{4}-\d{2}-\d{2})/);return m?[m[1],m[2]]:[null,null]}
+async function decorate(){
+ if(busy)return;const p=panel();if(!p)return;busy=true;
+ try{
+  const [assess,stays,ev]=await Promise.all([
+   api('housing_assessments?select=id,stay_id,period_start,period_end,actual_hours,target_hours,deduction_status&order=period_end.desc,period_start.desc'),
+   api('housing_stays?select=id,rider_id,rider_name'),
+   api('housing_evidence?select=id,assessment_id')
+  ]);
+  const stayMap=new Map((stays||[]).map(s=>[s.id,s]));
+  const evCount=new Map();(ev||[]).forEach(e=>evCount.set(e.assessment_id,(evCount.get(e.assessment_id)||0)+1));
+  const map=new Map();(assess||[]).forEach(a=>{const s=stayMap.get(a.stay_id);if(s)map.set(`${s.rider_id}|${a.period_start}|${a.period_end}`,a)});
+  const table=p.querySelector('.hh132-table');if(!table)return;
+  [...(table.tBodies?.[0]?.rows||[])].forEach(tr=>{
+   const rider=(tr.cells?.[0]?.querySelector('small')?.textContent||'').trim();
+   const [ps,pe]=parsePeriod(tr.cells?.[1]?.textContent||'');
+   const a=map.get(`${rider}|${ps}|${pe}`);if(!a)return;
+   const action=tr.cells[tr.cells.length-1];if(!action)return;
+   action.innerHTML='';
+   const n=evCount.get(a.id)||0;
+   if(a.actual_hours!=null){action.innerHTML='<span class="hh140-done">تم التقييم</span>';return}
+   if(admin()&&n>0){action.innerHTML=`<button class="hh140-legacy" data-hh140-hours="${a.id}" data-target="${a.target_hours}">استكمال الساعات القديمة</button>`}
+   else action.innerHTML='<span class="hh140-wait">يُستكمل من طلب الخروج</span>';
+  });
+ }catch(e){console.warn('housing evidence v140',e)}finally{busy=false}
+}
+async function completeLegacy(id,target){
+ const v=prompt(`السجل قديم والإثبات مرفوع بالفعل.\nأدخل الساعات الفعلية للمندوب.\nالتارجت المطلوب: ${target} ساعة`);
+ if(v===null)return;const n=Number(v);if(!Number.isFinite(n)||n<0)return toast('اكتب عدد ساعات صحيح',true);
+ try{
+  const res=await api('rpc/housing_set_actual_hours',{method:'POST',body:JSON.stringify({p_assessment_id:id,p_actual_hours:n,p_source:'LEGACY_ADMIN_COMPLETION'})});
+  const a=Array.isArray(res)?res[0]:res;
+  if(a?.target_met)toast(`تم الاستكمال ✅ التارجت متحقق ولا يوجد خصم`);
+  else toast(`تم الاستكمال ✅ قيمة الخصم: ${Number(a?.deduction_amount||0).toFixed(2)} جنيه`);
+  if(typeof window.refreshAll==='function')await window.refreshAll();
+ }catch(e){toast(e.message||'تعذر استكمال الساعات',true)}
+}
+document.addEventListener('click',e=>{const b=e.target instanceof Element?e.target.closest('[data-hh140-hours]'):null;if(!b)return;e.preventDefault();e.stopPropagation();completeLegacy(b.dataset.hh140Hours,b.dataset.target)},true);
+const obs=new MutationObserver(()=>setTimeout(decorate,60));
+function boot(){const root=document.getElementById('hh132Body');if(root){obs.observe(root,{childList:true,subtree:true});decorate()}else setTimeout(boot,250)}
+boot();
+})();
+</script>
