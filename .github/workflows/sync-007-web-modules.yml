@@ -7,6 +7,7 @@ on:
     paths:
       - 'android-007/portal/modules_v120_patch.html'
       - 'android-007/portal/hurghada_housing_v130_patch.html'
+      - 'android-007/portal/hurghada_housing_v131_hotfix.html'
       - '.github/workflows/sync-007-web-modules.yml'
   workflow_dispatch:
 
@@ -32,15 +33,16 @@ jobs:
           patches=[
             Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
             Path('android-007/portal/hurghada_housing_v130_patch.html').read_text(encoding='utf-8'),
+            Path('android-007/portal/hurghada_housing_v131_hotfix.html').read_text(encoding='utf-8'),
           ]
           scripts=[]
           for p in patches:
             scripts += re.findall(r'<script[^>]*>(.*?)</script>',p,flags=re.S)
           if not scripts: raise SystemExit('ERROR: no scripts found')
-          Path('/tmp/modules-v130.js').write_text('\n'.join(scripts),encoding='utf-8')
-          print('scripts',len(scripts),'bytes',Path('/tmp/modules-v130.js').stat().st_size)
+          Path('/tmp/modules-v131.js').write_text('\n'.join(scripts),encoding='utf-8')
+          print('scripts',len(scripts),'bytes',Path('/tmp/modules-v131.js').stat().st_size)
           PY
-          node --check /tmp/modules-v130.js
+          node --check /tmp/modules-v131.js
 
       - name: Inject modular UI into web source
         shell: bash
@@ -59,13 +61,14 @@ jobs:
               return html.replace('</body>',block+'\n</body>',1)
           html=inject(html,'<!-- MODULES_V120_START -->','<!-- MODULES_V120_END -->',Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'))
           html=inject(html,'<!-- HURGHADA_HOUSING_V130_START -->','<!-- HURGHADA_HOUSING_V130_END -->',Path('android-007/portal/hurghada_housing_v130_patch.html').read_text(encoding='utf-8'))
+          html=inject(html,'<!-- HURGHADA_HOUSING_V131_START -->','<!-- HURGHADA_HOUSING_V131_END -->',Path('android-007/portal/hurghada_housing_v131_hotfix.html').read_text(encoding='utf-8'))
           page.write_text(html,encoding='utf-8')
           print('web source bytes',len(html))
           PY
           grep -q 'modulesV120Script' web-007/index.html
-          grep -q 'hurghadaHousingV130Script' web-007/index.html
-          grep -q 'HURGHADA_HOUSING_V130_START' web-007/index.html
-          grep -q 'سكن الغردقة' web-007/index.html
+          grep -q 'hh131Script' web-007/index.html
+          grep -q 'HURGHADA_HOUSING_V131_START' web-007/index.html
+          grep -q 'لا يوجد «نظام سكن»' web-007/index.html
 
       - name: Mark validated web UI
         shell: bash
@@ -73,11 +76,11 @@ jobs:
           set -euo pipefail
           mkdir -p build-status
           {
-            echo '007 Operations Web Modules v1.3.0'
+            echo '007 Operations Web Modules v1.3.1'
             echo 'status=SUCCESS'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } > build-status/007-web-modules-v1.3.0.txt
+          } > build-status/007-web-modules-v1.3.1.txt
 
       - name: Commit synchronized web source
         shell: bash
@@ -85,6 +88,6 @@ jobs:
           set -euo pipefail
           git config user.name '007 Web Sync'
           git config user.email 'actions@users.noreply.github.com'
-          git add web-007/index.html build-status/007-web-modules-v1.3.0.txt
-          git commit -m 'Sync Hurghada housing workflow into 007 web portal [skip ci]' || exit 0
+          git add web-007/index.html build-status/007-web-modules-v1.3.1.txt
+          git commit -m 'Sync clean Hurghada housing v1.3.1 UI [skip ci]' || exit 0
           git push origin HEAD:007-operations-android
