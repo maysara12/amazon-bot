@@ -13,21 +13,22 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV149">
+<script id="fullPortalComposerV153">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
   const stamp=Date.now();
   const get=async url=>{const r=await fetch(url+(url.includes('?')?'&':'?')+'v='+stamp,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status+' — '+url.split('/').pop());return r.text()};
   try{
-    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,assessArchive,changeUnit,staysFilter]=await Promise.all([
-      get(BASE),get(CURRENT+'v110_patch.html'),get(CURRENT+'modules_v120_patch.html'),get(CURRENT+'hurghada_housing_v132_patch.html'),get(CURRENT+'housing_checkout_workflow_v139_patch.html'),get(CURRENT+'housing_v135_fix_patch.html'),get(CURRENT+'auth_v111_patch.html'),get(CURRENT+'realtime_v134_patch.html'),get(CURRENT+'app_ui_v136_patch.html'),get(CURRENT+'housing_requests_filter_v137_patch.html'),get(CURRENT+'brand_logo_v138_patch.html'),get(CURRENT+'housing_evidence_cleanup_v140_patch.html'),get(CURRENT+'housing_checkin_layout_v141_patch.html'),get(CURRENT+'housing_assess_archive_v146_patch.html'),get(CURRENT+'housing_change_unit_v147_patch.html'),get(CURRENT+'housing_stays_filter_v149_patch.html')
+    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,assessArchive,changeUnit,staysFilter,zonesArchive]=await Promise.all([
+      get(BASE),get(CURRENT+'v110_patch.html'),get(CURRENT+'modules_v120_patch.html'),get(CURRENT+'hurghada_housing_v132_patch.html'),get(CURRENT+'housing_checkout_workflow_v139_patch.html'),get(CURRENT+'housing_v135_fix_patch.html'),get(CURRENT+'auth_v111_patch.html'),get(CURRENT+'realtime_v134_patch.html'),get(CURRENT+'app_ui_v136_patch.html'),get(CURRENT+'housing_requests_filter_v137_patch.html'),get(CURRENT+'brand_logo_v138_patch.html'),get(CURRENT+'housing_evidence_cleanup_v140_patch.html'),get(CURRENT+'housing_checkin_layout_v141_patch.html'),get(CURRENT+'housing_assess_archive_v146_patch.html'),get(CURRENT+'housing_change_unit_v147_patch.html'),get(CURRENT+'housing_stays_filter_v149_patch.html'),get(CURRENT+'zones_archive_v153_patch.html')
     ]);
     if(!housingFix.includes('decorateStays(){ return; }'))throw new Error('نسخة السكن المستقرة غير محملة');
     if(!assessArchive.includes('housingAssessArchiveV146Script'))throw new Error('أرشيف الحساب والخصومات غير مكتمل');
     if(!changeUnit.includes('housingChangeUnitV147Script'))throw new Error('إدارة بيانات المندوب غير مكتملة');
     if(!staysFilter.includes('housingStaysFilterV149Script'))throw new Error('فلتر الشقق v1.4.9 غير مكتمل');
-    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,assessArchive,changeUnit,staysFilter].join('\n');
+    if(!zonesArchive.includes('zonesArchiveV153Script'))throw new Error('إدارة إزالة الزونات غير مكتملة');
+    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,assessArchive,changeUnit,staysFilter,zonesArchive].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
     document.open();document.write(final);document.close();
   }catch(e){console.error('007 full portal composer',e);const m=document.getElementById('msg');if(m){m.className='msg err';m.textContent='تعذر تشغيل البورتال الكامل: '+(e.message||e)}}
