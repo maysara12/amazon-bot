@@ -3,186 +3,99 @@
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="#07111f"/><rect x="3" y="3" width="58" height="58" rx="13" fill="none" stroke="#ddb75a" stroke-width="2"/><text x="32" y="39" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="900" fill="#f1cf79">007</text></svg>`;
   const href='data:image/svg+xml,'+encodeURIComponent(svg);
   document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"]').forEach(x=>x.remove());
-  const icon=document.createElement('link');
-  icon.rel='icon';
-  icon.type='image/svg+xml';
-  icon.href=href;
-  document.head.appendChild(icon);
-  const shortcut=document.createElement('link');
-  shortcut.rel='shortcut icon';
-  shortcut.href=href;
-  document.head.appendChild(shortcut);
+  const icon=document.createElement('link');icon.rel='icon';icon.type='image/svg+xml';icon.href=href;document.head.appendChild(icon);
+  const shortcut=document.createElement('link');shortcut.rel='shortcut icon';shortcut.href=href;document.head.appendChild(shortcut);
   document.title='007 Operations';
 })();
 </script>
+
 <style id="authV111Styles">
-.auth-recovery-note{margin:12px 0 16px;padding:12px 14px;border-radius:13px;background:#102238;border:1px solid #2a3f5b;color:#c7d3e0;line-height:1.8;font-size:13px}.auth-recovery-note.bad{background:#351820;border-color:#71313d;color:#ffc5cc}.auth-recovery-note.ok{background:#123328;border-color:#285a45;color:#a6e8c2}.auth-recovery-note b{color:#f1cf79}.auth-recovery-security{margin-top:14px;color:#7f93aa;font-size:11px;line-height:1.8}.auth-recovery-security strong{color:#b9c7d6}.auth-recovery-success{display:grid;gap:12px;text-align:center}.auth-recovery-success .checkmark{width:64px;height:64px;border-radius:18px;margin:auto;display:grid;place-items:center;background:#173c2d;color:#91e2b4;font-size:30px;border:1px solid #2d6b50}
+.auth-recovery-note{margin:12px 0 16px;padding:12px 14px;border-radius:13px;background:#102238;border:1px solid #2a3f5b;color:#c7d3e0;line-height:1.8;font-size:13px}.auth-recovery-note.bad{background:#351820;border-color:#71313d;color:#ffc5cc}.auth-recovery-note.ok{background:#123328;border-color:#285a45;color:#a6e8c2}.auth-recovery-note b{color:#f1cf79}.auth-recovery-success{display:grid;gap:12px;text-align:center}.auth-recovery-success .checkmark{width:64px;height:64px;border-radius:18px;margin:auto;display:grid;place-items:center;background:#173c2d;color:#91e2b4;font-size:30px;border:1px solid #2d6b50}
+/* Hard-disable every obsolete housing surface. v1.3.2 creates its own IDs. */
+#housingResidentModal,#housingPaymentModal,#housingUnitModal,#sec-housing,#h130RequestModal,#h130UnitModal,#h130HoursModal,#sec-housing130,#hh131Modal,#sec-hh131{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
+
+<script id="legacyHousingGuardV132">
+(function(){
+  const OLD_IDS=['housingResidentModal','housingPaymentModal','housingUnitModal','sec-housing','h130RequestModal','h130UnitModal','h130HoursModal','sec-housing130','hh131Modal','sec-hh131'];
+  function oldText(el){return /إضافة ساكن|نظام السكن|المساهمة الشهرية|إدارة الشقق والسكان والمصروفات/.test(String(el?.textContent||''))}
+  function purge(){
+    OLD_IDS.forEach(id=>document.getElementById(id)?.remove());
+    document.querySelectorAll('[data-housing-add-resident],[data-add-resident-unit],[data-end-resident],[data-housing-add-payment],[data-add-payment-unit]').forEach(x=>x.remove());
+    document.querySelectorAll('.modal,.section').forEach(x=>{if(oldText(x))x.remove()});
+    if(!document.getElementById('hh132Script')){
+      document.querySelectorAll('[data-go="housing"]').forEach(x=>x.remove());
+      document.querySelectorAll('.module-card').forEach(x=>{if(/السكن/.test(x.textContent||''))x.remove()});
+    }
+  }
+  purge();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',purge,{once:true});
+  const observer=new MutationObserver(()=>purge());
+  const start=()=>{if(document.body)observer.observe(document.body,{childList:true,subtree:true});else setTimeout(start,50)};start();
+  const timer=setInterval(()=>{
+    purge();
+    if(document.getElementById('hh132Script')){
+      setTimeout(()=>{purge();observer.disconnect()},2500);
+      clearInterval(timer);
+    }
+  },120);
+  setTimeout(()=>{clearInterval(timer);observer.disconnect();purge()},15000);
+  window.__purgeLegacyHousing007=purge;
+})();
+</script>
+
 <script id="authV111Script">
 (function(){
   const RESET_REDIRECT='https://007-operations-portal.vercel.app';
-  function parseAuthError(){
-    const hash=new URLSearchParams(location.hash.replace(/^#/,''));
-    const query=new URLSearchParams(location.search);
-    return {
-      error:hash.get('error')||query.get('error')||'',
-      code:hash.get('error_code')||query.get('error_code')||'',
-      desc:(hash.get('error_description')||query.get('error_description')||'').replace(/\+/g,' ')
-    };
-  }
-  function cleanAuthErrorUrl(){
-    if(location.hash.includes('error=')||location.search.includes('error=')){
-      history.replaceState({},'',location.pathname);
-    }
-  }
+  const callAuth=(path,opt)=>typeof auth==='function'?auth(path,opt):authRequest(path,opt);
+  const busy007=(btn,on,label)=>typeof busy==='function'?busy(btn,on,label):setBusy(btn,on,label);
+  function parseAuthError(){const h=new URLSearchParams(location.hash.replace(/^#/,'')),q=new URLSearchParams(location.search);return{error:h.get('error')||q.get('error')||'',code:h.get('error_code')||q.get('error_code')||'',desc:(h.get('error_description')||q.get('error_description')||'').replace(/\+/g,' ')}}
   function addConfirmField(){
-    const box=document.getElementById('recoverBox');
-    const first=document.getElementById('recoverPassword');
+    const box=document.getElementById('recoverBox'),first=document.getElementById('recoverPassword');
     if(!box||!first||document.getElementById('recoverPassword2'))return;
-    const field=document.createElement('div');
-    field.className='field';
-    field.innerHTML='<label>تأكيد كلمة المرور الجديدة</label><input id="recoverPassword2" class="input" type="password" minlength="8" autocomplete="new-password">';
-    first.closest('.field').insertAdjacentElement('afterend',field);
-    const note=document.createElement('div');
-    note.className='auth-recovery-note';
-    note.innerHTML='<b>اختار كلمة مرور جديدة</b><br>8 أحرف على الأقل. بعد الحفظ هترجع لشاشة تسجيل الدخول.';
-    box.querySelector('h2')?.insertAdjacentElement('afterend',note);
+    const f=document.createElement('div');f.className='field';f.innerHTML='<label>تأكيد كلمة المرور الجديدة</label><input id="recoverPassword2" class="input" type="password" minlength="8" autocomplete="new-password">';first.closest('.field').insertAdjacentElement('afterend',f);
+    const n=document.createElement('div');n.className='auth-recovery-note';n.innerHTML='<b>اختار كلمة مرور جديدة</b><br>8 أحرف على الأقل. بعد الحفظ هترجع لشاشة تسجيل الدخول.';box.querySelector('h2')?.insertAdjacentElement('afterend',n);
   }
-  async function sendResetV111(){
-    const email=document.getElementById('forgotEmail')?.value.trim();
-    const btn=document.getElementById('forgotBtn');
-    if(!email)return toast('اكتب البريد الإلكتروني',true);
-    busy(btn,true,'جاري إرسال الرابط...');
-    try{
-      await auth('recover?redirect_to='+encodeURIComponent(RESET_REDIRECT),{method:'POST',body:JSON.stringify({email}),token:null});
-      const box=document.getElementById('forgotBox');
-      let note=document.getElementById('resetSentV111');
-      if(!note){note=document.createElement('div');note.id='resetSentV111';note.className='auth-recovery-note ok';box.insertBefore(note,btn)}
-      note.innerHTML='<b>تم إرسال رابط جديد ✅</b><br>افتح أحدث رسالة وصلتك فقط. الرابط يُستخدم مرة واحدة، ولو طلبت رابط جديد تجاهل أي رسالة أقدم.';
-      toast('تم إرسال رابط استعادة جديد ✅');
-    }catch(e){toast(e.message||'تعذر إرسال رابط الاستعادة',true)}finally{busy(btn,false)}
+  async function sendReset007(){
+    const email=document.getElementById('forgotEmail')?.value.trim(),btn=document.getElementById('forgotBtn');if(!email)return toast('اكتب البريد الإلكتروني',true);
+    busy007(btn,true,'جاري إرسال الرابط...');
+    try{await callAuth('recover?redirect_to='+encodeURIComponent(RESET_REDIRECT),{method:'POST',body:JSON.stringify({email}),token:null});let n=document.getElementById('resetSent007');if(!n){n=document.createElement('div');n.id='resetSent007';n.className='auth-recovery-note ok';btn.parentNode.insertBefore(n,btn)}n.innerHTML='<b>تم إرسال رابط جديد ✅</b><br>افتح أحدث رسالة وصلتك فقط.';toast('تم إرسال رابط الاستعادة ✅')}catch(e){toast(e.message||'تعذر إرسال رابط الاستعادة',true)}finally{busy007(btn,false)}
   }
-  async function savePasswordV111(){
-    const p1=document.getElementById('recoverPassword')?.value||'';
-    const p2=document.getElementById('recoverPassword2')?.value||'';
-    const btn=document.getElementById('recoverBtn');
-    if(p1.length<8)return toast('كلمة المرور لازم تكون 8 أحرف على الأقل',true);
-    if(p1!==p2)return toast('كلمتا المرور غير متطابقتين',true);
-    busy(btn,true,'جاري حفظ كلمة المرور...');
-    try{
-      await auth('user',{method:'PUT',body:JSON.stringify({password:p1})});
-      try{await auth('logout',{method:'POST',body:'{}'})}catch(_){ }
-      saveSession(null);
-      history.replaceState({},'',location.pathname);
-      const box=document.getElementById('recoverBox');
-      box.innerHTML='<div class="auth-recovery-success"><div class="checkmark">✓</div><h2>تم تغيير كلمة المرور</h2><p class="muted">تقدر دلوقتي تسجل دخولك بكلمة المرور الجديدة.</p><button id="recoveryDoneLogin" class="btn btn-primary wide" type="button">الذهاب لتسجيل الدخول</button></div>';
-      document.getElementById('recoveryDoneLogin').onclick=()=>{location.reload()};
-      toast('تم تغيير كلمة المرور بنجاح ✅');
-    }catch(e){
-      const msg=String(e?.message||e||'');
-      if(/expired|invalid|otp/i.test(msg)){
-        showExpiredV111('رابط الاستعادة انتهت صلاحيته أو تم استخدامه من قبل.');
-      }else toast(msg||'تعذر تغيير كلمة المرور',true);
-    }finally{busy(btn,false)}
+  async function savePassword007(){
+    const p1=document.getElementById('recoverPassword')?.value||'',p2=document.getElementById('recoverPassword2')?.value||'',btn=document.getElementById('recoverBtn');if(p1.length<8)return toast('كلمة المرور لازم تكون 8 أحرف على الأقل',true);if(p1!==p2)return toast('كلمتا المرور غير متطابقتين',true);
+    busy007(btn,true,'جاري حفظ كلمة المرور...');
+    try{await callAuth('user',{method:'PUT',body:JSON.stringify({password:p1})});try{await callAuth('logout',{method:'POST',body:'{}'})}catch(_){}saveSession(null);history.replaceState({},'',location.pathname);const box=document.getElementById('recoverBox');box.innerHTML='<div class="auth-recovery-success"><div class="checkmark">✓</div><h2>تم تغيير كلمة المرور</h2><p class="muted">تقدر دلوقتي تسجل دخولك بكلمة المرور الجديدة.</p><button id="recoveryDoneLogin" class="btn btn-primary wide" type="button">الذهاب لتسجيل الدخول</button></div>';document.getElementById('recoveryDoneLogin').onclick=()=>location.reload();toast('تم تغيير كلمة المرور ✅')}catch(e){toast(e.message||'تعذر تغيير كلمة المرور',true)}finally{busy007(btn,false)}
   }
-  function showExpiredV111(message){
-    saveSession(null);
-    document.getElementById('portalView')?.classList.add('hidden');
-    document.getElementById('authView')?.classList.remove('hidden');
-    showAuth('forgot');
-    const box=document.getElementById('forgotBox');
-    let note=document.getElementById('expiredResetV111');
-    if(!note){note=document.createElement('div');note.id='expiredResetV111';note.className='auth-recovery-note bad';box.querySelector('p')?.insertAdjacentElement('afterend',note)}
-    note.innerHTML='<b>الرابط غير صالح أو انتهت صلاحيته</b><br>'+String(message||'اطلب رابط جديد من هنا.')+'<div class="auth-recovery-security"><strong>مهم:</strong> استخدم أحدث رسالة Reset فقط؛ أي رابط أقدم قد يصبح غير صالح بعد طلب رابط جديد.</div>';
-    const btn=document.getElementById('forgotBtn'); if(btn)btn.textContent='إرسال رابط استعادة جديد';
-    cleanAuthErrorUrl();
-  }
-  function initRecoveryV111(){
-    addConfirmField();
-    const forgotBtn=document.getElementById('forgotBtn');if(forgotBtn)forgotBtn.onclick=sendResetV111;
-    const recoverBtn=document.getElementById('recoverBtn');if(recoverBtn)recoverBtn.onclick=savePasswordV111;
-    const err=parseAuthError();
-    if(err.error||err.code){
-      const human=err.code==='otp_expired'?'رابط الاستعادة انتهت صلاحيته.':(err.desc||'تعذر استخدام رابط الاستعادة.');
-      showExpiredV111(human);
-      return;
-    }
-    const recoverBox=document.getElementById('recoverBox');
-    if(recoverBox&&!recoverBox.classList.contains('hidden')){
-      document.getElementById('authView')?.classList.remove('hidden');
-      document.getElementById('portalView')?.classList.add('hidden');
-      addConfirmField();
-    }
-  }
-  window.addEventListener('DOMContentLoaded',()=>setTimeout(initRecoveryV111,0));
+  function init(){addConfirmField();const f=document.getElementById('forgotBtn'),r=document.getElementById('recoverBtn');if(f)f.onclick=sendReset007;if(r)r.onclick=savePassword007;const e=parseAuthError();if(e.error||e.code){if(typeof showAuth==='function')showAuth('forgot');let n=document.getElementById('authExpired007');const box=document.getElementById('forgotBox');if(box&&!n){n=document.createElement('div');n.id='authExpired007';n.className='auth-recovery-note bad';n.innerHTML='<b>الرابط غير صالح أو انتهت صلاحيته</b><br>اطلب رابط استعادة جديد من هنا.';box.insertBefore(n,box.firstChild)}history.replaceState({},'',location.pathname)}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0));else setTimeout(init,0);
 })();
 </script>
+
 <script id="loginErrorV112Script">
 (function(){
-  function validEmail007(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim())}
-  function loginMessage007(code,status,message){
-    const c=String(code||'').toLowerCase();
-    const m=String(message||'').toLowerCase();
-    if(c==='email_not_confirmed'||m.includes('email not confirmed'))return 'البريد الإلكتروني لم يتم تأكيده بعد. افتح رسالة التأكيد أولًا.';
-    if(c==='user_banned'||m.includes('banned'))return 'الحساب موقوف حاليًا. تواصل مع إدارة 007.';
-    if(status===429||c.includes('rate')||m.includes('too many')||m.includes('rate limit'))return 'محاولات تسجيل دخول كثيرة. انتظر قليلًا ثم جرّب مرة أخرى.';
-    if(c==='weak_password'||m.includes('weak password'))return 'كلمة المرور الحالية لم تعد مستوفية لمتطلبات الأمان. استخدم «نسيت كلمة المرور؟» لتعيين كلمة جديدة.';
-    if(c==='captcha_failed'||m.includes('captcha'))return 'تعذر التحقق الأمني. حدّث الصفحة وحاول مرة أخرى.';
-    if(c==='invalid_credentials'||m.includes('invalid login credentials')||m.includes('invalid credentials'))return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-    return 'تعذر تسجيل الدخول. راجع البيانات وحاول مرة أخرى.';
-  }
-  async function login007V112(){
-    const btn=document.getElementById('loginBtn');
-    const email=(document.getElementById('loginEmail')?.value||'').trim();
-    const password=document.getElementById('loginPassword')?.value||'';
-    if(!email)return toast('اكتب البريد الإلكتروني',true);
-    if(!validEmail007(email))return toast('صيغة البريد الإلكتروني غير صحيحة',true);
-    if(!password)return toast('اكتب كلمة المرور',true);
-    busy(btn,true,'جاري التحقق...');
-    try{
-      const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
-        method:'POST',
-        headers:{apikey:API_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({email,password})
-      });
-      let d={};try{d=await r.json()}catch(_){ }
-      if(!r.ok){
-        const code=d.code||d.error_code||d.error||'';
-        const message=d.message||d.error_description||d.msg||'';
-        return toast(loginMessage007(code,r.status,message),true);
-      }
-      saveSession(d);
-      await boot();
-    }catch(_){
-      toast('تعذر الاتصال بخدمة تسجيل الدخول. تأكد من الإنترنت وحاول مرة أخرى.',true);
-    }finally{busy(btn,false)}
-  }
-  function installLogin007(){
-    const btn=document.getElementById('loginBtn');
-    const pass=document.getElementById('loginPassword');
-    if(btn)btn.onclick=login007V112;
-    if(pass)pass.onkeydown=e=>{if(e.key==='Enter')login007V112()};
-  }
-  window.login007V112=login007V112;
-  if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',()=>setTimeout(installLogin007,0));
-  else setTimeout(installLogin007,0);
+  const validEmail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim());
+  function msg(code,status,message){const c=String(code||'').toLowerCase(),m=String(message||'').toLowerCase();if(c==='email_not_confirmed'||m.includes('email not confirmed'))return 'البريد الإلكتروني لم يتم تأكيده بعد. افتح رسالة التأكيد أولًا.';if(c==='user_banned'||m.includes('banned'))return 'الحساب موقوف حاليًا. تواصل مع إدارة 007.';if(status===429||c.includes('rate')||m.includes('too many')||m.includes('rate limit'))return 'محاولات تسجيل دخول كثيرة. انتظر قليلًا ثم جرّب مرة أخرى.';if(c==='invalid_credentials'||m.includes('invalid login credentials')||m.includes('invalid credentials'))return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';return 'تعذر تسجيل الدخول. راجع البيانات وحاول مرة أخرى.'}
+  async function login007(){const btn=document.getElementById('loginBtn'),email=(document.getElementById('loginEmail')?.value||'').trim(),password=document.getElementById('loginPassword')?.value||'';if(!email)return toast('اكتب البريد الإلكتروني',true);if(!validEmail(email))return toast('صيغة البريد الإلكتروني غير صحيحة',true);if(!password)return toast('اكتب كلمة المرور',true);const busy007=(b,o,l)=>typeof busy==='function'?busy(b,o,l):setBusy(b,o,l);busy007(btn,true,'جاري التحقق...');try{const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:API_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});let d={};try{d=await r.json()}catch(_){}if(!r.ok)return toast(msg(d.code||d.error_code||d.error,r.status,d.message||d.error_description||d.msg),true);saveSession(d);await boot()}catch(_){toast('تعذر الاتصال بخدمة تسجيل الدخول. تأكد من الإنترنت وحاول مرة أخرى.',true)}finally{busy007(btn,false)}}
+  function install(){const b=document.getElementById('loginBtn'),p=document.getElementById('loginPassword');if(b)b.onclick=login007;if(p)p.onkeydown=e=>{if(e.key==='Enter')login007()}}
+  window.login007V112=login007;if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0));else setTimeout(install,0);
 })();
 </script>
+
 <script id="hh132RuntimeLoader">
 (async function(){
   if(document.getElementById('hh132Script'))return;
   try{
+    window.__purgeLegacyHousing007?.();
     if(typeof DecompressionStream==='undefined')throw new Error('المتصفح يحتاج تحديث لدعم واجهة السكن الجديدة');
-    const u='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/hurghada_housing_v132_patch.html.gz.b64?v=132';
+    const u='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/hurghada_housing_v132_patch.html.gz.b64?v=132c-'+Date.now();
     const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Housing UI '+r.status);
-    const b64=(await r.text()).trim();
-    const bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
-    const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const html=await new Response(stream).text();
+    const b64=(await r.text()).trim(),bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+    const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip')),html=await new Response(stream).text();
     const doc=new DOMParser().parseFromString(html,'text/html');
-    doc.querySelectorAll('style').forEach(s=>{const n=document.createElement('style');n.id=s.id;n.textContent=s.textContent;document.head.appendChild(n)});
-    doc.querySelectorAll('script').forEach(s=>{const n=document.createElement('script');n.id=s.id;n.textContent=s.textContent;document.body.appendChild(n)});
-    setTimeout(()=>{if(typeof window.refreshAll==='function')window.refreshAll().catch?.(()=>{})},100);
-  }catch(e){console.error('hh132 runtime',e)}
+    doc.querySelectorAll('style').forEach(s=>{if(document.getElementById(s.id))document.getElementById(s.id).remove();const n=document.createElement('style');n.id=s.id;n.textContent=s.textContent;document.head.appendChild(n)});
+    doc.querySelectorAll('script').forEach(s=>{if(document.getElementById(s.id))document.getElementById(s.id).remove();const n=document.createElement('script');n.id=s.id;n.textContent=s.textContent;document.body.appendChild(n)});
+    window.__purgeLegacyHousing007?.();
+    setTimeout(()=>{window.__purgeLegacyHousing007?.();if(typeof window.refreshAll==='function')Promise.resolve(window.refreshAll()).catch(()=>{})},100);
+  }catch(e){console.error('hh132 runtime',e);window.__purgeLegacyHousing007?.()}
 })();
 </script>
