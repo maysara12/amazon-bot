@@ -1,5 +1,6 @@
 name: Diagnose 007 v1.2.0 APK
 
+# trigger: 2
 on:
   push:
     branches:
