@@ -3,16 +3,23 @@
 #realtime007State{position:fixed;z-index:260;left:18px;top:14px;display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:#102238e8;border:1px solid #29405e;color:#9eb1c7;font:11px Tahoma,Arial,sans-serif;backdrop-filter:blur(10px);pointer-events:none;transition:.2s ease}#realtime007State i{width:8px;height:8px;border-radius:50%;background:#e1a844;box-shadow:0 0 0 3px #e1a84418}#realtime007State.live{color:#9ae8bd;border-color:#286048}#realtime007State.live i{background:#42c58b;box-shadow:0 0 0 3px #42c58b18}#realtime007State.offline{color:#ffc2c9;border-color:#853442}#realtime007State.offline i{background:#ef6a78;box-shadow:0 0 0 3px #ef6a7818}@media(max-width:820px){#realtime007State{top:8px;left:8px;padding:5px 8px;font-size:10px}}
 </style>
 <div id="realtime007State"><i></i><span>جاري ربط التحديث اللحظي…</span></div>
-<script id="realtimeV134Script">
+<script id="realtimeV134Script" data-version="1.4.3">
 (function(){
   'use strict';
   let rtClient=null,rtChannel=null,activeToken='',refreshTimer=null,pollTimer=null,healthTimer=null;
-  let refreshInFlight=false,suppressUntil=0,lastAutoRefresh=0;
+  let refreshInFlight=false,suppressUntil=0,lastAutoRefresh=0,lastEventRefresh=0;
   const state=()=>document.getElementById('realtime007State');
   function setState(kind,text){const el=state();if(!el)return;el.className=kind||'';const s=el.querySelector('span');if(s)s.textContent=text}
   function loggedIn(){return !!(session?.access_token&&me)}
-  function safeRefresh(reason,delay=250){
+  function housingVisible(){return !!document.getElementById('sec-hh132')?.classList.contains('active')}
+  function eventRelevant(table){
+    table=String(table||'');
+    if(housingVisible())return table.startsWith('housing_');
+    return true;
+  }
+  function safeRefresh(reason,delay=700,force=false){
     if(!loggedIn()||Date.now()<suppressUntil)return;
+    if(!force&&Date.now()-lastAutoRefresh<1500)return;
     clearTimeout(refreshTimer);
     refreshTimer=setTimeout(async()=>{
       if(!loggedIn()||refreshInFlight||Date.now()<suppressUntil)return;
@@ -22,12 +29,14 @@
         lastAutoRefresh=Date.now();
         if(navigator.onLine)setState(rtChannel?'live':'','متصل — البيانات محدثة تلقائيًا');
       }catch(e){console.warn('007 realtime refresh',reason,e)}
-      finally{refreshInFlight=false;suppressUntil=Date.now()+1200}
+      finally{refreshInFlight=false;suppressUntil=Date.now()+1800}
     },delay);
   }
   function startFallback(){
     clearInterval(pollTimer);
-    pollTimer=setInterval(()=>{if(document.visibilityState==='visible'&&loggedIn())safeRefresh('fallback-poll',0)},5000);
+    pollTimer=setInterval(()=>{
+      if(document.visibilityState==='visible'&&loggedIn()&&Date.now()-lastAutoRefresh>18000)safeRefresh('fallback-poll',0,true)
+    },20000);
   }
   function stopFallback(){clearInterval(pollTimer);pollTimer=null}
   async function disconnect(){
@@ -39,30 +48,33 @@
     const token=session.access_token;
     if(rtChannel&&activeToken===token)return true;
     await disconnect();
-    if(!window.supabase?.createClient){setState('offline','Realtime غير متاح — تحديث تلقائي كل 5 ثوانٍ');startFallback();return false}
+    if(!window.supabase?.createClient){setState('offline','Realtime غير متاح — مزامنة احتياطية');startFallback();return false}
     try{
       rtClient=window.supabase.createClient(SUPABASE_URL,API_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
       await rtClient.realtime.setAuth(token);
       activeToken=token;
-      rtChannel=rtClient.channel('007-operations-live-v134')
+      rtChannel=rtClient.channel('007-operations-live-v143')
         .on('postgres_changes',{event:'*',schema:'public'},payload=>{
-          if(Date.now()<suppressUntil||refreshInFlight)return;
-          safeRefresh('postgres:'+String(payload?.table||''),300);
+          const table=String(payload?.table||'');
+          if(!eventRelevant(table)||Date.now()<suppressUntil||refreshInFlight)return;
+          const now=Date.now();
+          if(now-lastEventRefresh<600)return;
+          lastEventRefresh=now;
+          safeRefresh('postgres:'+table,900,false);
         })
         .subscribe(status=>{
           if(status==='SUBSCRIBED'){
             stopFallback();
             setState('live','متصل لحظيًا');
-            safeRefresh('subscribed',50);
           }else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
-            setState('offline','الاتصال اللحظي متوقف — تحديث تلقائي كل 5 ثوانٍ');
+            setState('offline','الاتصال اللحظي متوقف — مزامنة احتياطية');
             startFallback();
           }
         });
       return true;
     }catch(e){
       console.warn('007 realtime connect',e);
-      setState('offline','تعذر Realtime — تحديث تلقائي كل 5 ثوانٍ');
+      setState('offline','تعذر Realtime — مزامنة احتياطية');
       startFallback();
       return false;
     }
@@ -70,30 +82,35 @@
   const originalRefresh=window.refreshAll;
   if(typeof originalRefresh==='function'){
     window.refreshAll=async function(){
+      if(refreshInFlight)return;
       refreshInFlight=true;
       try{return await originalRefresh.apply(this,arguments)}
-      finally{refreshInFlight=false;suppressUntil=Date.now()+1200}
+      finally{refreshInFlight=false;lastAutoRefresh=Date.now();suppressUntil=Date.now()+1800}
     };
   }
-  function foreground(){if(!loggedIn())return;safeRefresh('foreground',0);connect()}
+  function foreground(){
+    if(!loggedIn())return;
+    connect();
+    if(Date.now()-lastAutoRefresh>10000)safeRefresh('foreground',150,true);
+  }
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')foreground()});
   window.addEventListener('focus',foreground);
-  window.addEventListener('online',()=>{setState('','إعادة ربط التحديث اللحظي…');connect();safeRefresh('online',100)});
+  window.addEventListener('online',()=>{setState('','إعادة ربط التحديث اللحظي…');connect();if(Date.now()-lastAutoRefresh>10000)safeRefresh('online',150,true)});
   window.addEventListener('offline',()=>{setState('offline','لا يوجد إنترنت');startFallback()});
   healthTimer=setInterval(async()=>{
     if(!loggedIn())return;
     const token=session.access_token;
     if(!rtChannel)await connect();
     else if(token!==activeToken){try{await rtClient.realtime.setAuth(token);activeToken=token}catch(_){await connect()}}
-    if(document.visibilityState==='visible'&&Date.now()-lastAutoRefresh>30000)safeRefresh('health',0);
-  },2000);
+    if(document.visibilityState==='visible'&&Date.now()-lastAutoRefresh>60000)safeRefresh('health',0,true);
+  },10000);
   const bootWait=setInterval(()=>{
     if(loggedIn()){
       clearInterval(bootWait);
       connect();
-      safeRefresh('login',100);
+      setTimeout(()=>{if(Date.now()-lastAutoRefresh>5000)safeRefresh('login',100,true)},250);
     }
-  },400);
+  },500);
   setTimeout(()=>{if(!loggedIn())setState('','Realtime جاهز بعد تسجيل الدخول')},2500);
 })();
 </script>
