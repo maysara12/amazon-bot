@@ -1,25 +1,35 @@
 <style id="housingChangeUnitV147Style">
 .hh147-move{border-color:#4a6688!important;color:#b9d8ff!important}
-#hh147MoveInfo{line-height:1.8}
+.hh148-dates{border-color:#846d36!important;color:#f1cf79!important}
+#hh147MoveInfo,#hh148DatesInfo{line-height:1.8}
+.hh148-warning{border-right:3px solid #d8b25c;background:#102238;border-radius:12px;padding:10px 12px;color:#c8d6e5;line-height:1.8;margin:10px 0}
 </style>
-<script id="housingChangeUnitV147Script" data-version="1.4.7">
+<script id="housingChangeUnitV147Script" data-version="1.4.8">
 (function(){
 'use strict';
-if(window.__housingChangeUnitV147)return;window.__housingChangeUnitV147=true;
-let currentStay=null,busy=false;
+if(window.__housingChangeUnitV148)return;window.__housingChangeUnitV148=true;
+let currentStay=null,currentDateStay=null,busy=false;
 const byId=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isAdmin=()=>!!me&&(['OWNER','ADMIN','REVIEWER'].includes(me.role)||me.can_see_internal===true);
-function ensureModal(){
- if(byId('hh147MoveModal'))return;
- const wrap=document.createElement('div');
- wrap.innerHTML=`<div id="hh147MoveModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>تغيير شقة المندوب</h3><button class="close" id="hh147MoveClose">×</button></div><div id="hh147MoveInfo" class="hh132-note"></div><div class="field"><label>الشقة الصحيحة</label><select id="hh147MoveUnit" class="input"></select></div><div class="field"><label>سبب التعديل</label><input id="hh147MoveNote" class="input" value="تصحيح الشقة المسجلة بالخطأ"></div><button id="hh147MoveSave" class="btn btn-primary wide">حفظ الشقة الجديدة</button></div></div>`;
- document.body.appendChild(wrap.firstElementChild);
- byId('hh147MoveClose').onclick=()=>byId('hh147MoveModal').classList.remove('open');
+function cairoToday(){try{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const x=Object.fromEntries(p.map(i=>[i.type,i.value]));return `${x.year}-${x.month}-${x.day}`}catch(_){return new Date().toISOString().slice(0,10)}}
+function ensureModals(){
+ if(!byId('hh147MoveModal')){
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`<div id="hh147MoveModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>تغيير شقة المندوب</h3><button class="close" id="hh147MoveClose">×</button></div><div id="hh147MoveInfo" class="hh132-note"></div><div class="field"><label>الشقة الصحيحة</label><select id="hh147MoveUnit" class="input"></select></div><div class="field"><label>سبب التعديل</label><input id="hh147MoveNote" class="input" value="تصحيح الشقة المسجلة بالخطأ"></div><button id="hh147MoveSave" class="btn btn-primary wide">حفظ الشقة الجديدة</button></div></div>`;
+  document.body.appendChild(wrap.firstElementChild);
+  byId('hh147MoveClose').onclick=()=>byId('hh147MoveModal').classList.remove('open');
+ }
+ if(!byId('hh148DatesModal')){
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`<div id="hh148DatesModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>تعديل تواريخ المندوب</h3><button class="close" id="hh148DatesClose">×</button></div><div id="hh148DatesInfo" class="hh132-note"></div><div class="field"><label>تاريخ الدخول الفعلي</label><input id="hh148CheckIn" class="input" type="date"></div><div class="field"><label>بداية المحاسبة داخل النظام</label><input id="hh148Billing" class="input" type="date"></div><div class="hh148-warning"><b>مهم:</b> بداية المحاسبة لا يمكن أن تكون قبل تاريخ الدخول. لو فيه ساعات أو إثبات أو خصم أو طلب خروج مربوط بالفترة، النظام سيرفض تعديل التواريخ لحماية الحسابات.</div><button id="hh148DatesSave" class="btn btn-primary wide">حفظ التواريخ الصحيحة</button></div></div>`;
+  document.body.appendChild(wrap.firstElementChild);
+  byId('hh148DatesClose').onclick=()=>byId('hh148DatesModal').classList.remove('open');
+ }
 }
 async function openMove(stayId){
  if(!isAdmin())return toast('تغيير الشقة متاح للإدارة فقط',true);
- ensureModal();
+ ensureModals();
  try{
   const arr=await api(`housing_stays?select=id,zone_id,unit_id,rider_id,rider_name&status=eq.ACTIVE&id=eq.${encodeURIComponent(stayId)}&limit=1`);
   currentStay=Array.isArray(arr)?arr[0]:null;
@@ -47,21 +57,54 @@ async function saveMove(){
  const btn=byId('hh147MoveSave');btn.disabled=true;
  try{
   await api('rpc/housing_move_active_stay_unit',{method:'POST',body:JSON.stringify({p_stay_id:currentStay.id,p_unit_id:unitId,p_note:note||null})});
-  byId('hh147MoveModal').classList.remove('open');
-  toast('تم تغيير شقة المندوب بنجاح ✅');
-  currentStay=null;
+  byId('hh147MoveModal').classList.remove('open');toast('تم تغيير شقة المندوب بنجاح ✅');currentStay=null;
   if(typeof window.refreshAll==='function')await window.refreshAll();
   setTimeout(()=>{document.querySelector('[data-hht="stays"]')?.click();decorate()},120);
  }catch(e){toast(e.message||'تعذر تغيير الشقة',true)}finally{btn.disabled=false}
+}
+async function openDates(stayId){
+ if(!isAdmin())return toast('تعديل التواريخ متاح للإدارة فقط',true);
+ ensureModals();
+ try{
+  const arr=await api(`housing_stays?select=id,rider_id,rider_name,check_in_date,billing_start_date,status&id=eq.${encodeURIComponent(stayId)}&status=eq.ACTIVE&limit=1`);
+  currentDateStay=Array.isArray(arr)?arr[0]:null;
+  if(!currentDateStay)return toast('الإقامة غير موجودة أو غير نشطة',true);
+  const max=cairoToday();
+  byId('hh148CheckIn').max=max;byId('hh148Billing').max=max;
+  byId('hh148CheckIn').value=currentDateStay.check_in_date||'';
+  byId('hh148Billing').value=currentDateStay.billing_start_date||currentDateStay.check_in_date||'';
+  byId('hh148DatesInfo').innerHTML=`<b>${esc(currentDateStay.rider_name)} — ${esc(currentDateStay.rider_id)}</b><br>تاريخ الدخول الحالي: <b>${esc(currentDateStay.check_in_date||'—')}</b><br>بداية المحاسبة الحالية: <b>${esc(currentDateStay.billing_start_date||currentDateStay.check_in_date||'—')}</b>`;
+  byId('hh148DatesModal').classList.add('open');
+ }catch(e){toast(e.message||'تعذر تحميل تواريخ المندوب',true)}
+}
+async function saveDates(){
+ if(!currentDateStay)return;
+ const checkIn=byId('hh148CheckIn').value,billing=byId('hh148Billing').value,max=cairoToday();
+ if(!checkIn||!billing)return toast('تاريخ الدخول وبداية المحاسبة مطلوبان',true);
+ if(checkIn>max||billing>max)return toast('لا يمكن اختيار تاريخ بعد اليوم',true);
+ if(billing<checkIn)return toast('بداية المحاسبة لا يمكن أن تكون قبل تاريخ الدخول',true);
+ const btn=byId('hh148DatesSave');btn.disabled=true;
+ try{
+  const res=await api('rpc/housing_update_stay_dates',{method:'POST',body:JSON.stringify({p_stay_id:currentDateStay.id,p_check_in_date:checkIn,p_billing_start_date:billing})});
+  const row=Array.isArray(res)?res[0]:res;
+  byId('hh148DatesModal').classList.remove('open');
+  toast(`تم تعديل التواريخ بنجاح ✅${row?.rebuilt_assessments?` — أعيد بناء ${row.rebuilt_assessments} فترة حساب`:''}`);
+  currentDateStay=null;
+  if(typeof window.refreshAll==='function')await window.refreshAll();
+  setTimeout(()=>{document.querySelector('[data-hht="stays"]')?.click();decorate()},120);
+ }catch(e){toast(e.message||'تعذر تعديل التواريخ',true)}finally{btn.disabled=false}
 }
 function decorate(){
  if(!isAdmin()||busy)return;busy=true;
  try{
   document.querySelectorAll('#hh132Body [data-out]').forEach(out=>{
-    const cell=out.closest('td');if(!cell||cell.querySelector('[data-hh147-move]'))return;
-    const b=document.createElement('button');
-    b.className='hh132-btn hh147-move';b.dataset.hh147Move=out.dataset.out;b.textContent='تغيير الشقة';
-    cell.insertBefore(b,out);
+    const cell=out.closest('td');if(!cell)return;
+    if(!cell.querySelector('[data-hh147-move]')){
+      const b=document.createElement('button');b.className='hh132-btn hh147-move';b.dataset.hh147Move=out.dataset.out;b.textContent='تغيير الشقة';cell.insertBefore(b,out);
+    }
+    if(!cell.querySelector('[data-hh148-dates]')){
+      const b=document.createElement('button');b.className='hh132-btn hh148-dates';b.dataset.hh148Dates=out.dataset.out;b.textContent='تعديل التواريخ';cell.insertBefore(b,out);
+    }
     cell.style.display='flex';cell.style.gap='6px';cell.style.flexWrap='wrap';
   });
  }finally{busy=false}
@@ -69,7 +112,9 @@ function decorate(){
 document.addEventListener('click',e=>{
  const t=e.target instanceof Element?e.target:null;if(!t)return;
  const mv=t.closest('[data-hh147-move]');if(mv){e.preventDefault();e.stopPropagation();openMove(mv.dataset.hh147Move);return}
+ const dt=t.closest('[data-hh148-dates]');if(dt){e.preventDefault();e.stopPropagation();openDates(dt.dataset.hh148Dates);return}
  if(t.closest('#hh147MoveSave')){e.preventDefault();e.stopPropagation();saveMove();return}
+ if(t.closest('#hh148DatesSave')){e.preventDefault();e.stopPropagation();saveDates();return}
  if(t.closest('[data-hht="stays"]'))setTimeout(decorate,120);
 },true);
 const prevRefresh=window.refreshAll;
