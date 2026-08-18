@@ -47,9 +47,14 @@ jobs:
           print('scripts',len(scripts),'bytes',Path('/tmp/modules-v132.js').stat().st_size)
           PY
           node --check /tmp/modules-v132.js
+          grep -q 'data-core="orders-only"' android-007/portal/modules_v120_patch.html
           grep -q 'hh132Script' /tmp/hh132.html
           grep -q 'إثبات الساعات' /tmp/hh132.html
           grep -q 'خرجوا من السكن' /tmp/hh132.html
+          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية' android-007/portal/modules_v120_patch.html; then
+            echo 'ERROR: legacy housing UI found in core modules'
+            exit 1
+          fi
 
       - name: Inject clean modular UI into web source
         shell: bash
@@ -77,13 +82,17 @@ jobs:
           page.write_text(html,encoding='utf-8')
           print('web source bytes',len(html))
           PY
-          grep -q 'modulesV120Script' web-007/index.html
+          grep -q 'data-core="orders-only"' web-007/index.html
           grep -q 'hh132Script' web-007/index.html
           grep -q 'HURGHADA_HOUSING_V132_START' web-007/index.html
           grep -q 'إثبات الساعات' web-007/index.html
           grep -q 'خرجوا من السكن' web-007/index.html
           if grep -q 'HURGHADA_HOUSING_V130_START' web-007/index.html; then exit 1; fi
           if grep -q 'HURGHADA_HOUSING_V131_START' web-007/index.html; then exit 1; fi
+          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية' web-007/index.html; then
+            echo 'ERROR: legacy housing UI remains in final web source'
+            exit 1
+          fi
 
       - name: Mark validated web UI
         shell: bash
@@ -91,7 +100,7 @@ jobs:
           set -euo pipefail
           mkdir -p build-status
           {
-            echo '007 Operations Web Modules v1.3.2'
+            echo '007 Operations Web Modules v1.3.2-clean'
             echo 'status=SUCCESS'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -104,7 +113,7 @@ jobs:
           git config user.name '007 Web Sync'
           git config user.email 'actions@users.noreply.github.com'
           git add web-007/index.html build-status/007-web-modules-v1.3.2.txt
-          git commit -m 'Sync Hurghada housing v1.3.2 evidence and archive UI [skip ci]' || exit 0
+          git commit -m 'Sync clean Hurghada housing v1.3.2 source [skip ci]' || exit 0
           for i in 1 2 3; do
             git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
             sleep 3
