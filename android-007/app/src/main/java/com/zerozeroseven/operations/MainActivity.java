@@ -23,8 +23,13 @@ public class MainActivity extends Activity {
     private View splashView;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_CODE = 1001;
+
+    // Keep the in-app portal on the exact same origin used by the public website.
+    // This makes signup / recovery redirect_to URLs valid for both web and Android.
+    private static final String PUBLIC_PORTAL_DOMAIN = "007-operations-portal.vercel.app";
+    private static final String PUBLIC_PORTAL_ORIGIN = "https://" + PUBLIC_PORTAL_DOMAIN;
     private static final String LOCAL_PORTAL_URL =
-            "https://appassets.androidplatform.net/assets/www/index.html";
+            PUBLIC_PORTAL_ORIGIN + "/assets/www/index.html";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,11 +46,12 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " 007OperationsAndroid/1.0.3");
+        settings.setUserAgentString(settings.getUserAgentString() + " 007OperationsAndroid/1.0.4");
 
         webView.setBackgroundColor(android.graphics.Color.rgb(7, 17, 31));
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .setDomain(PUBLIC_PORTAL_DOMAIN)
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
 
@@ -99,14 +105,17 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
 
-                if (url.startsWith("https://appassets.androidplatform.net/")) {
+                // Local bundled portal assets remain inside the app.
+                if (url.startsWith(PUBLIC_PORTAL_ORIGIN + "/assets/")) {
                     return false;
                 }
 
+                // Supabase Auth/API calls must remain inside the WebView flow.
                 if (url.startsWith("https://gektzjagrxqgcbhyeihm.supabase.co/")) {
                     return false;
                 }
 
+                // All normal web links open in the user's browser.
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     try {
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
