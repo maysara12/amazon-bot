@@ -1,0 +1,97 @@
+<style id="housingCheckoutV139Style">
+.hh139-preview{border:1px solid #315276;background:#0b2035;border-radius:13px;padding:12px 14px;margin:10px 0;line-height:1.9;color:#c7d6e7}.hh139-preview b{color:#f1cf79}.hh139-result{border-radius:12px;padding:11px 13px;margin:9px 0;border:1px solid #2a405b;background:#0a1a2b;line-height:1.8}.hh139-result.ok{border-color:#2f6a51;background:#0d2820;color:#b8efd1}.hh139-result.bad{border-color:#7b3540;background:#2b151a;color:#ffc1c7}.hh139-eval{margin-top:10px;padding:11px 13px;border:1px solid #2b425f;background:#081827;border-radius:12px;line-height:1.75}.hh139-eval.ok{border-color:#2f6a51}.hh139-eval.bad{border-color:#71333c}.hh139-eval .hh139-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}.hh139-eval .hh139-grid>div{background:#0c2034;border-radius:9px;padding:8px}.hh139-eval small{display:block;color:#8da1b9}.hh139-eval strong{display:block;margin-top:3px}.hh139-copy{margin-top:9px;border:1px solid #846d36;background:#342a14;color:#f1cf79;border-radius:9px;padding:7px 10px;font-weight:800}.hh139-required{color:#ffb5bd;font-weight:800}@media(max-width:720px){.hh139-eval .hh139-grid{grid-template-columns:1fr 1fr}}
+</style>
+<script id="housingCheckoutV139Script">
+(function(){
+'use strict';
+let checkoutMode=false,stayCache=null,preview=null,saving=false,decorating=false;
+const statements=new Map();
+const byId=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>Number(v||0);
+const money=v=>num(v).toFixed(2)+' ج';
+function arDate(v){if(!v)return '—';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:String(v)}
+function cairoToday(){try{const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const x=Object.fromEntries(p.map(i=>[i.type,i.value]));return `${x.year}-${x.month}-${x.day}`}catch(_){return new Date().toISOString().slice(0,10)}}
+function stop(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}
+function ensureCheckoutBlock(){
+ const save=byId('hh132ReqSave');if(!save)return false;
+ let block=byId('hh135CheckoutBlock');
+ if(!block){block=document.createElement('div');block.id='hh135CheckoutBlock';block.className='hh135-proof-box';save.insertAdjacentElement('beforebegin',block)}
+ if(!byId('hh139Preview')){
+  block.innerHTML=`<div id="hh135CheckoutHint" class="hh135-info"></div><div id="hh139Preview" class="hh139-preview">اختار تاريخ الخروج لحساب التارجت.</div><div class="field"><label>الساعات الفعلية الظاهرة في تطبيق المندوب <span class="hh139-required">*</span></label><input id="hh139ActualHours" class="input" type="number" min="0" step="0.01" placeholder="مثال: 190.50"></div><div id="hh139Result" class="hh139-result">أدخل الساعات الفعلية ليظهر هل التارجت متحقق وقيمة الخصم.</div><div class="field"><label>سكرين الساعات من موبايل المندوب <span class="hh139-required">*</span></label><input id="hh135CheckoutFiles" class="input" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"></div><div class="field"><label>ملاحظة على الإثبات</label><textarea id="hh135CheckoutNote" class="input" rows="2" placeholder="مثال: الساعات مأخوذة من تطبيق المندوب"></textarea></div><small class="muted">السكرين شرط أساسي لاعتماد الخروج، سواء التارجت متحقق أو غير متحقق. مسموح حتى 4 ملفات، 8 MB لكل ملف.</small>`;
+ }
+ return true;
+}
+async function getStay(id){const a=await api(`housing_stays?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(a)?a[0]:null}
+async function refreshPreview(){
+ if(!checkoutMode||!stayCache)return;
+ const date=byId('hh132ReqDate')?.value;if(!date)return;
+ const box=byId('hh139Preview');if(box)box.innerHTML='جاري حساب فترة السكن والتارجت…';
+ try{
+  const r=await api('rpc/housing_checkout_preview',{method:'POST',body:JSON.stringify({p_stay_id:stayCache.id,p_effective_date:date})});
+  preview=Array.isArray(r)?r[0]:r;if(!preview?.period_start)throw new Error('تعذر حساب فترة الخروج');
+  if(box)box.innerHTML=`<b>فترة الحساب:</b> ${arDate(preview.period_start)} → ${arDate(preview.period_end)}<br><b>عدد الأيام:</b> ${preview.days_count} يوم — <b>التارجت المطلوب:</b> ${num(preview.target_hours).toFixed(2)} ساعة<br><b>قيمة السكن عن الفترة إذا لم يتحقق التارجت:</b> ${money(preview.prorated_housing_fee)}<br><span class="muted">تاريخ الدخول الحقيقي: ${arDate(preview.check_in_date)} — المحاسبة داخل النظام من: ${arDate(preview.billing_start_date)}</span>`;
+  const hint=byId('hh135CheckoutHint');if(hint)hint.innerHTML=`<b>اسحب الساعات من تطبيق المندوب للفترة ${arDate(preview.period_start)} إلى ${arDate(preview.period_end)}</b> ثم اكتب إجمالي الساعات وارفع السكرين.`;
+  renderResult();
+ }catch(e){preview=null;if(box)box.innerHTML=`<span class="hh139-required">${esc(e.message||'تعذر حساب التارجت')}</span>`;renderResult()}
+}
+function renderResult(){
+ const box=byId('hh139Result');if(!box)return;
+ const raw=byId('hh139ActualHours')?.value;
+ if(!preview||raw===''||raw==null||!Number.isFinite(Number(raw))){box.className='hh139-result';box.textContent='أدخل الساعات الفعلية ليظهر هل التارجت متحقق وقيمة الخصم.';return}
+ const actual=Number(raw),target=num(preview.target_hours),met=actual>=target,short=Math.max(target-actual,0);
+ if(met){box.className='hh139-result ok';box.innerHTML=`✓ <b>التارجت متحقق</b> — المطلوب ${target.toFixed(2)} ساعة، المحقق ${actual.toFixed(2)} ساعة.<br><b>لا يوجد خصم سكن.</b> رفع السكرين يظل شرطًا أساسيًا لإرسال واعتماد الخروج.`}
+ else{box.className='hh139-result bad';box.innerHTML=`✕ <b>التارجت غير متحقق</b> — المطلوب ${target.toFixed(2)} ساعة، المحقق ${actual.toFixed(2)} ساعة، العجز ${short.toFixed(2)} ساعة.<br><b>الخصم المتوقع: ${money(preview.prorated_housing_fee)}</b>`}
+}
+async function openCheckout(stayId){
+ checkoutMode=true;preview=null;if(!ensureCheckoutBlock())return toast('شاشة طلب الخروج غير جاهزة. اعمل تحديث وجرب تاني.',true);
+ stayCache=await getStay(stayId);if(!stayCache){checkoutMode=false;return toast('تعذر تحميل إقامة المندوب',true)}
+ byId('hh132ReqType').value='CHECK_OUT';byId('hh132ReqStay').value=stayId;byId('hh132ReqTitle').textContent='طلب خروج من السكن — للموافقة';
+ byId('hh132ReqRider').readOnly=true;byId('hh132ReqName').readOnly=true;byId('hh132ReqRider').value=stayCache.rider_id||'';byId('hh132ReqName').value=stayCache.rider_name||'';
+ byId('hh132ReqDate').value=cairoToday();byId('hh132ReqDate').closest('.field')?.querySelector('label')&&(byId('hh132ReqDate').closest('.field').querySelector('label').textContent='تاريخ الخروج الفعلي');
+ byId('hh132ReqNote').value='';if(byId('hh132ReqUnitField'))byId('hh132ReqUnitField').style.display='none';if(byId('hh135BillingField'))byId('hh135BillingField').style.display='none';
+ byId('hh135CheckoutBlock').style.display='block';byId('hh139ActualHours').value='';byId('hh135CheckoutFiles').value='';byId('hh135CheckoutNote').value='';byId('hh132ReqSave').textContent='إرسال طلب الخروج للموافقة';
+ byId('hh132ReqModal').classList.add('open');await refreshPreview();
+}
+function fileExt(f){const n=String(f.name||'').toLowerCase();if(n.includes('.'))return n.split('.').pop().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin';return String(f.type||'').split('/').pop().replace(/[^a-z0-9]/g,'').slice(0,8)||'bin'}
+function validFiles(files){const allowed=['image/jpeg','image/png','image/webp','image/heic','image/heif','application/pdf'];if(!files.length)return 'لازم ترفع سكرين الساعات قبل إرسال طلب الخروج';if(files.length>4)return 'الحد الأقصى 4 ملفات';if(files.some(f=>f.size>8*1024*1024))return 'كل ملف لازم يكون أقل من 8 MB';if(files.some(f=>!allowed.includes(f.type)))return 'نوع ملف غير مدعوم';return ''}
+async function uploadHousing(path,file,retry=true){let token=session?.access_token;if(!token)throw new Error('غير مسجل الدخول');let r=await fetch(SUPABASE_URL+'/storage/v1/object/housing-evidence/'+encodeURI(path),{method:'POST',headers:{apikey:API_KEY,Authorization:'Bearer '+token,'Content-Type':file.type||'application/octet-stream','x-upsert':'false'},body:file});if(r.status===401&&retry&&session?.refresh_token){await refreshToken();return uploadHousing(path,file,false)}return parse(r)}
+async function saveEvidence(assessmentId,stayId,files,note,periodStart,periodEnd){for(const f of files){const uuid=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);const path=`${assessmentId}/${Date.now()}-checkout-${uuid}.${fileExt(f)}`;await uploadHousing(path,f);await api('housing_evidence',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({assessment_id:assessmentId,stay_id:stayId,evidence_type:'HOURS_PROOF',storage_path:path,original_name:f.name,mime_type:f.type,size_bytes:f.size,note:`إثبات ساعات طلب خروج | الفترة ${periodStart||''} إلى ${periodEnd||''}${note?' | '+note:''}`,uploaded_by:me.id})})}}
+async function saveCheckout(){
+ if(saving||!checkoutMode||!stayCache)return;const date=byId('hh132ReqDate').value,note=byId('hh132ReqNote').value.trim(),raw=byId('hh139ActualHours').value,actual=Number(raw),files=[...byId('hh135CheckoutFiles').files];
+ if(raw===''||!Number.isFinite(actual)||actual<0)return toast('اكتب الساعات الفعلية الظاهرة في تطبيق المندوب',true);const ferr=validFiles(files);if(ferr)return toast(ferr,true);
+ saving=true;const btn=byId('hh132ReqSave');btn.disabled=true;
+ try{
+  await refreshPreview();if(!preview)throw new Error('تعذر حساب التارجت لهذا التاريخ');
+  const res=await api('rpc/housing_create_checkout_request_v2',{method:'POST',body:JSON.stringify({p_stay_id:stayCache.id,p_effective_date:date,p_actual_hours:actual,p_supervisor_note:note||null})});
+  const row=Array.isArray(res)?res[0]:res;if(!row?.request_id||!row?.assessment_id)throw new Error('تعذر إنشاء طلب الخروج');
+  try{await saveEvidence(row.assessment_id,stayCache.id,files,byId('hh135CheckoutNote').value.trim(),row.period_start,row.period_end)}catch(up){toast('تم حفظ طلب الخروج والساعات، لكن رفع السكرين لم يكتمل. الطلب لن يمكن اعتماده قبل رفع الإثبات.',true);throw up}
+  byId('hh132ReqModal').classList.remove('open');checkoutMode=false;
+  if(row.target_met)toast(`تم إرسال طلب الخروج للموافقة ✅ التارجت متحقق (${num(row.actual_hours).toFixed(2)} / ${num(row.target_hours).toFixed(2)} ساعة) — بدون خصم`);
+  else toast(`تم إرسال طلب الخروج للموافقة ⚠ الخصم المحسوب ${money(row.deduction_amount)} — العجز ${(num(row.target_hours)-num(row.actual_hours)).toFixed(2)} ساعة`,true);
+  if(typeof window.refreshAll==='function')await window.refreshAll();setTimeout(()=>document.querySelector('[data-hht="requests"]')?.click(),100);
+ }catch(e){console.warn('checkout v139',e);if(!String(e?.message||'').includes('تم حفظ طلب الخروج'))toast(e.message||'تعذر إرسال طلب الخروج',true)}finally{saving=false;btn.disabled=false}
+}
+function statementFor(r,a){const short=Math.max(num(a.target_hours)-num(a.actual_hours),0);return `بيان خصم سكن الغردقة — 007 Operations\nاسم المندوب: ${r.rider_name||'—'}\nRider ID: ${r.rider_id||'—'}\nتاريخ الخروج: ${arDate(r.effective_date)}\nفترة المحاسبة: ${arDate(a.period_start)} إلى ${arDate(a.period_end)}\nعدد الأيام: ${a.days_count}\nالتارجت المطلوب: ${num(a.target_hours).toFixed(2)} ساعة\nالساعات المحققة: ${num(a.actual_hours).toFixed(2)} ساعة\nالعجز: ${short.toFixed(2)} ساعة\nقيمة السكن عن الفترة: ${num(a.prorated_housing_fee).toFixed(2)} جنيه\nقيمة الخصم المطلوب: ${num(a.deduction_amount).toFixed(2)} جنيه\nالسبب: عدم تحقيق تارجت ساعات السكن للفترة المذكورة.`}
+async function copyStatement(id){const txt=statements.get(id);if(!txt)return toast('بيان الخصم غير جاهز',true);try{await navigator.clipboard.writeText(txt);toast('تم نسخ بيان الخصم للحسابات ✅')}catch(_){prompt('انسخ بيان الخصم:',txt)}}
+async function decorateRequests(){
+ const root=byId('hh132Body');if(!root||decorating)return;const panel=[...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='طلبات الدخول والخروج');if(!panel)return;const cards=[...panel.querySelectorAll(':scope > .hh132-card')];if(!cards.length)return;
+ decorating=true;try{
+  const reqs=await api('housing_requests?select=id,request_type,status,stay_id,checkout_assessment_id,rider_id,rider_name,effective_date,hours_period_start,hours_period_end&order=created_at.desc')||[];
+  const aids=reqs.filter(r=>r.checkout_assessment_id).map(r=>r.checkout_assessment_id);let aa=[],ev=[];
+  if(aids.length){aa=await api(`housing_assessments?select=id,period_start,period_end,days_count,target_hours,actual_hours,target_met,prorated_housing_fee,deduction_amount,deduction_details&id=in.(${aids.join(',')})`)||[];try{ev=await api(`housing_evidence?select=id,assessment_id&assessment_id=in.(${aids.join(',')})`)||[]}catch(_){}}
+  const amap=new Map(aa.map(a=>[a.id,a]));
+  cards.forEach((card,i)=>{const r=reqs[i];if(!r||r.request_type!=='CHECK_OUT'||!r.checkout_assessment_id)return;const a=amap.get(r.checkout_assessment_id);if(!a)return;let box=card.querySelector('.hh139-eval');if(!box){box=document.createElement('div');card.appendChild(box)}const hasProof=ev.some(x=>x.assessment_id===a.id);const actual=a.actual_hours==null?null:num(a.actual_hours),target=num(a.target_hours),short=actual==null?null:Math.max(target-actual,0),met=a.target_met===true;
+   box.className='hh139-eval '+(actual==null?'':met?'ok':'bad');box.innerHTML=`<b>${actual==null?'⚠ الساعات الفعلية غير مسجلة':met?'✓ التارجت متحقق — لا يوجد خصم':'✕ التارجت غير متحقق — خصم مطلوب'}</b><div class="hh139-grid"><div><small>الفترة</small><strong>${arDate(a.period_start)} → ${arDate(a.period_end)}</strong></div><div><small>التارجت</small><strong>${target.toFixed(2)} س</strong></div><div><small>المحقق</small><strong>${actual==null?'—':actual.toFixed(2)+' س'}</strong></div><div><small>${met?'الخصم':'العجز / الخصم'}</small><strong>${actual==null?'—':met?'0.00 ج':short.toFixed(2)+' س / '+money(a.deduction_amount)}</strong></div></div><small style="margin-top:7px">${hasProof?'✓ سكرين الساعات مرفق':'⚠ سكرين الساعات غير مرفق'}</small>${actual!=null&&!met?`<button class="hh139-copy" data-hh139-copy="${r.id}">نسخ بيان الخصم للحسابات</button>`:''}`;
+   if(actual!=null&&!met)statements.set(r.id,statementFor(r,a));
+   if(r.status==='PENDING'){const ok=card.querySelector('[data-ok]');if(ok){ok.disabled=actual==null||!hasProof;ok.title=ok.disabled?'لا يمكن الاعتماد قبل الساعات الفعلية وسكرين الإثبات':'اعتماد الخروج'}}
+  });
+ }catch(e){console.warn('decorate v139',e)}finally{decorating=false}
+}
+function schedule(){setTimeout(decorateRequests,120)}
+document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(!t)return;const inp=t.closest('[data-in]');if(inp){checkoutMode=false;return}const out=t.closest('[data-out]');if(out){stop(e);openCheckout(out.dataset.out);return}const save=t.closest('#hh132ReqSave');if(save&&checkoutMode){stop(e);saveCheckout();return}const cp=t.closest('[data-hh139-copy]');if(cp){stop(e);copyStatement(cp.dataset.hh139Copy);return}const close=t.closest('[data-hh132-close="hh132ReqModal"]');if(close)checkoutMode=false},true);
+document.addEventListener('change',e=>{if(checkoutMode&&e.target?.id==='hh132ReqDate')refreshPreview()});
+document.addEventListener('input',e=>{if(checkoutMode&&e.target?.id==='hh139ActualHours')renderResult()});
+const obs=new MutationObserver(schedule);function boot(){if(document.body){obs.observe(document.body,{childList:true,subtree:true});schedule()}else setTimeout(boot,100)}boot();
+})();
+</script>
