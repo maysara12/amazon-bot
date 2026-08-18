@@ -10,6 +10,63 @@
         android:layout_height="match_parent" />
 
     <LinearLayout
+        android:id="@+id/offlineView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="36dp"
+        android:visibility="gone"
+        android:background="#07111F">
+
+        <ImageView
+            android:layout_width="112dp"
+            android:layout_height="112dp"
+            android:src="@drawable/ic_launcher_007"
+            android:contentDescription="007 Operations"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="تعذر الاتصال"
+            android:textColor="#FFFFFF"
+            android:textSize="23sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:text="تأكد من اتصال الإنترنت ثم حاول مرة أخرى. بياناتك محفوظة داخل منظومة 007."
+            android:textColor="#91A4B9"
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp" />
+
+        <Button
+            android:id="@+id/retryButton"
+            android:layout_width="230dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="26dp"
+            android:text="إعادة المحاولة"
+            android:textAllCaps="false"
+            android:textColor="#07111F"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:backgroundTint="#E2B84F" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="007 Operations · v1.1.0"
+            android:textColor="#62758B"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/splashView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -64,5 +121,13 @@
             android:text="جاري تشغيل بوابة 007..."
             android:textColor="#91A4B9"
             android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="v1.1.0"
+            android:textColor="#566A80"
+            android:textSize="10sp" />
     </LinearLayout>
 </FrameLayout>
