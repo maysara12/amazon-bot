@@ -1,29 +1,32 @@
 <style id="housingSupervisorAssignmentV153Style">
-.hh153-panel{margin-top:16px}.hh153-grid{display:grid;gap:10px}.hh153-row{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(220px,1fr) auto;gap:10px;align-items:center;background:#091827;border:1px solid #223750;border-radius:13px;padding:12px}.hh153-row small{display:block;color:#8498b0;margin-top:4px}.hh153-account-list{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}.hh153-account{border:1px solid #2b425f;background:#0d1e31;border-radius:999px;padding:7px 10px;color:#cdd9e6;font-size:12px}.hh153-account b{color:#f0cb70}.hh153-actions{display:flex;gap:8px;flex-wrap:wrap}.hh153-note{margin:10px 0 14px}.hh153-create{border-color:#846d36!important;color:#f0cb70!important}.hh153-save{min-width:82px}.hh153-owner{color:#9fe0bc;font-weight:700}@media(max-width:720px){.hh153-row{grid-template-columns:1fr}.hh153-save{width:100%}}
+.hh153-panel{margin-top:16px}.hh153-grid{display:grid;gap:10px}.hh153-row{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(220px,1fr) auto;gap:10px;align-items:center;background:#091827;border:1px solid #223750;border-radius:13px;padding:12px}.hh153-row small{display:block;color:#8498b0;margin-top:4px}.hh153-account-list{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}.hh153-account{border:1px solid #2b425f;background:#0d1e31;border-radius:999px;padding:7px 10px;color:#cdd9e6;font-size:12px}.hh153-account b{color:#f0cb70}.hh153-note{margin:10px 0 14px}.hh153-create{border-color:#846d36!important;color:#f0cb70!important}.hh153-save{min-width:82px}.hh153-owner{color:#9fe0bc;font-weight:700}@media(max-width:720px){.hh153-row{grid-template-columns:1fr}.hh153-save{width:100%}}
 </style>
-<script id="housingSupervisorAssignmentV153Script" data-version="1.5.3">
+<script id="housingSupervisorAssignmentV153Script" data-version="1.5.5">
 (function(){
 'use strict';
 if(window.__housingSupervisorAssignmentV153)return;window.__housingSupervisorAssignmentV153=true;
 let creating=false,decorating=false;
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const adminHousing=()=>!!window.me&&(['OWNER','ADMIN','REVIEWER'].includes(me.role)||me.can_see_internal===true);
-function hurghada(){return (window.zones||[]).find(x=>x.code==='HURGHADA'||x.name_ar==='الغردقة'||String(x.name_en||'').toLowerCase()==='hurghada')}
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+function currentMe(){try{if(typeof me!=='undefined'&&me)return me}catch(_){}return window.me||null}
+function currentZones(){try{if(typeof zones!=='undefined'&&Array.isArray(zones))return zones}catch(_){}return Array.isArray(window.zones)?window.zones:[]}
+const adminHousing=()=>{const m=currentMe();return !!m&&(['OWNER','ADMIN','REVIEWER'].includes(m.role)||m.can_see_internal===true||m.can_manage_users===true)};
+function hurghada(){return currentZones().find(x=>x.code==='HURGHADA'||x.name_ar==='الغردقة'||String(x.name_en||'').toLowerCase()==='hurghada')}
 function ensureCreateModal(){
  if(document.getElementById('hh153CreateModal'))return;
- const d=document.createElement('div');d.innerHTML=`<div id="hh153CreateModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>إنشاء حساب مشرف سكن</h3><button class="close" data-hh153-close>×</button></div><div class="field"><label>اسم الحساب</label><input id="hh153CreateName" class="input" placeholder="مثال: نور الدين"></div><div class="field"><label>البريد الإلكتروني</label><input id="hh153CreateEmail" class="input" type="email"></div><div class="field"><label>كلمة المرور المؤقتة</label><input id="hh153CreatePassword" class="input" type="password" minlength="8"></div><div class="hh132-note"><strong>الحساب ده للسكن فقط.</strong> بعد إنشائه تقدر تسند له أي شقة من نفس الشاشة. لو إعدادات البريد تتطلب تأكيد الإيميل، صاحب الحساب لازم يؤكد الرسالة قبل أول دخول.</div><button id="hh153CreateSave" class="btn btn-primary wide">إنشاء الحساب</button></div></div>`;document.body.appendChild(d.firstElementChild);
+ const d=document.createElement('div');d.innerHTML=`<div id="hh153CreateModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>إنشاء حساب مشرف سكن</h3><button class="close" data-hh153-close>×</button></div><div class="field"><label>اسم الحساب</label><input id="hh153CreateName" class="input" placeholder="مثال: نور الدين"></div><div class="field"><label>البريد الإلكتروني</label><input id="hh153CreateEmail" class="input" type="email"></div><div class="field"><label>كلمة المرور المؤقتة</label><input id="hh153CreatePassword" class="input" type="password" minlength="8"></div><div class="hh132-note"><strong>الحساب ده للسكن فقط.</strong> بعد إنشائه تقدر تسند له أي شقة من نفس الشاشة.</div><button id="hh153CreateSave" class="btn btn-primary wide">إنشاء الحساب</button></div></div>`;document.body.appendChild(d.firstElementChild);
  document.querySelector('[data-hh153-close]').onclick=()=>document.getElementById('hh153CreateModal').classList.remove('open');
  document.getElementById('hh153CreateSave').onclick=createSupervisor;
 }
 async function createSupervisor(){
- if(creating||!adminHousing())return;const name=document.getElementById('hh153CreateName').value.trim(),email=document.getElementById('hh153CreateEmail').value.trim().toLowerCase(),password=document.getElementById('hh153CreatePassword').value;
+ if(creating||!adminHousing())return;
+ const name=document.getElementById('hh153CreateName').value.trim(),email=document.getElementById('hh153CreateEmail').value.trim().toLowerCase(),password=document.getElementById('hh153CreatePassword').value;
  if(!name||!email||password.length<8)return toast('اكتب الاسم والإيميل وباسورد 8 أحرف على الأقل',true);
  creating=true;const btn=document.getElementById('hh153CreateSave');btn.disabled=true;
  try{
   await auth('signup?redirect_to='+encodeURIComponent(PUBLIC_SITE),{method:'POST',body:JSON.stringify({email,password,data:{full_name:name}}),token:null});
   let p=null;
   for(let i=0;i<12&&!p;i++){await new Promise(r=>setTimeout(r,250));const rows=await api('profiles?email=eq.'+encodeURIComponent(email)+'&select=*&limit=1');p=Array.isArray(rows)?rows[0]:null}
-  if(!p)throw new Error('تم إنشاء مستخدم Auth لكن ملف الصلاحيات لم يظهر بعد. أعد فتح الصفحة بعد لحظات.');
+  if(!p)throw new Error('تم إنشاء المستخدم لكن ملف الصلاحيات لم يظهر بعد. أعد فتح الصفحة بعد لحظات.');
   await api('profiles?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({full_name:name,role:'SUPERVISOR',active:true,approval_status:'ACTIVE',can_submit:false,can_edit_own:false,can_review:false,can_manage_users:false,can_see_internal:false,housing_only:true})});
   const z=hurghada();if(z)await api('user_zones',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({user_id:p.id,zone_id:z.id})}).catch(()=>null);
   await api('housing_supervisor_scopes',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:p.id,scope_mode:'UNITS',updated_at:new Date().toISOString()})});
@@ -31,14 +34,17 @@ async function createSupervisor(){
  }catch(e){toast(e.message||'تعذر إنشاء الحساب',true)}finally{creating=false;btn.disabled=false}
 }
 async function assignUnit(unitId,userId){
- if(!adminHousing())return;try{await api('rpc/housing_assign_unit_supervisor',{method:'POST',body:JSON.stringify({p_unit_id:unitId,p_user_id:userId||null})});toast(userId?'تم إسناد الشقة للمشرف ✅':'تم فك إسناد الشقة ✅');await decorateSettings(true)}catch(e){toast(e.message||'تعذر حفظ الإسناد',true)}
+ if(!adminHousing())return;
+ try{await api('rpc/housing_assign_unit_supervisor',{method:'POST',body:JSON.stringify({p_unit_id:unitId,p_user_id:userId||null})});toast(userId?'تم إسناد الشقة للمشرف ✅':'تم فك إسناد الشقة ✅');await decorateSettings(true)}catch(e){toast(e.message||'تعذر حفظ الإسناد',true)}
 }
 async function decorateSettings(force=false){
  if(!adminHousing()||decorating)return;
- const body=document.getElementById('hh132Body');if(!body||!document.querySelector('[data-hht="settings"].active'))return;
- if(body.querySelector('#hh153AssignmentPanel')&&!force)return;decorating=true;
+ const body=document.getElementById('hh132Body'),settingsBtn=document.querySelector('[data-hht="settings"]');
+ if(!body||!settingsBtn||!settingsBtn.classList.contains('active'))return;
+ if(body.querySelector('#hh153AssignmentPanel')&&!force)return;
+ decorating=true;
  try{
-  const z=hurghada();if(!z)return;
+  const z=hurghada();if(!z)throw new Error('زون الغردقة غير محمل بعد');
   const [units,profiles,assignments,stays]=await Promise.all([
    api('housing_units?select=id,name,capacity,status&zone_id=eq.'+z.id+'&status=eq.ACTIVE&order=name.asc'),
    api('profiles?select=id,full_name,email,housing_only&role=eq.SUPERVISOR&active=eq.true&order=full_name.asc'),
@@ -51,21 +57,22 @@ async function decorateSettings(force=false){
   const assignedCount={};(assignments||[]).forEach(a=>assignedCount[a.user_id]=(assignedCount[a.user_id]||0)+1);
   const panel=document.createElement('div');panel.id='hh153AssignmentPanel';panel.className='panel hh153-panel';
   const accounts=(profiles||[]).map(p=>`<span class="hh153-account"><b>${esc(p.full_name||p.email)}</b> · ${assignedCount[p.id]||0} شقة${p.housing_only?' · سكن فقط':''}</span>`).join('')||'<span class="muted">لا توجد حسابات Supervisor حتى الآن.</span>';
-  const options=p=>`<option value="">غير مسندة</option>${(profiles||[]).map(x=>`<option value="${x.id}" ${p===x.id?'selected':''}>${esc(x.full_name||x.email)}${x.housing_only?' — سكن فقط':''}</option>`).join('')}`;
-  panel.innerHTML=`<div class="panel-head"><div><h3>توزيع الشقق على مشرفي السكن</h3><small class="muted">كل شقة تكون مسندة لحساب واحد فقط، ويمكن نقلها أو فك الإسناد في أي وقت.</small></div><button type="button" class="hh132-btn hh153-create" data-hh153-create>+ إنشاء حساب مشرف سكن</button></div><div class="hh153-account-list">${accounts}</div><div class="hh132-note hh153-note"><strong>صلاحية فعلية:</strong> الحساب يرى الشقق المسندة له وطيارينها فقط. نقل الشقة لا يغيّر بيانات الطيارين أو تواريخهم؛ يتغير فقط من يستطيع رؤيتها وإدارتها.</div><div class="hh153-grid">${(units||[]).map(u=>{const owner=ownerByUnit[u.id]||'';return `<div class="hh153-row"><div><b>${esc(u.name)}</b><small>${counts[u.id]||0} ساكن حاليًا من سعة ${u.capacity}</small></div><select class="input" data-hh153-select="${u.id}">${options(owner)}</select><button type="button" class="hh132-btn gold hh153-save" data-hh153-save="${u.id}">حفظ</button></div>`}).join('')||'<div class="empty">لا توجد شقق نشطة</div>'}</div>`;
+  const options=owner=>`<option value="">غير مسندة</option>${(profiles||[]).map(x=>`<option value="${x.id}" ${owner===x.id?'selected':''}>${esc(x.full_name||x.email)}${x.housing_only?' — سكن فقط':''}</option>`).join('')}`;
+  panel.innerHTML=`<div class="panel-head"><div><h3>توزيع الشقق على مشرفي السكن</h3><small class="muted">اختار المسؤول عن كل شقة واضغط حفظ. يمكن نقل الشقة أو فك الإسناد في أي وقت.</small></div><button type="button" class="hh132-btn hh153-create" data-hh153-create>+ إنشاء حساب مشرف سكن</button></div><div class="hh153-account-list">${accounts}</div><div class="hh132-note hh153-note"><strong>الصلاحية:</strong> كل حساب يرى الشقق المسندة له وطيارينها فقط. تغيير المسؤول لا ينقل الطيارين ولا يغيّر تواريخ السكن.</div><div class="hh153-grid">${(units||[]).map(u=>{const owner=ownerByUnit[u.id]||'';return `<div class="hh153-row"><div><b>${esc(u.name)}</b><small>${counts[u.id]||0} ساكن حاليًا من سعة ${u.capacity}</small></div><select class="input" data-hh153-select="${u.id}">${options(owner)}</select><button type="button" class="hh132-btn gold hh153-save" data-hh153-save="${u.id}">حفظ</button></div>`}).join('')||'<div class="empty">لا توجد شقق نشطة</div>'}</div>`;
   body.appendChild(panel);
   panel.querySelector('[data-hh153-create]').onclick=()=>{ensureCreateModal();document.getElementById('hh153CreateName').value='';document.getElementById('hh153CreateEmail').value='';document.getElementById('hh153CreatePassword').value='';document.getElementById('hh153CreateModal').classList.add('open')};
   panel.querySelectorAll('[data-hh153-save]').forEach(b=>b.onclick=()=>{const sel=panel.querySelector(`[data-hh153-select="${b.dataset.hh153Save}"]`);assignUnit(b.dataset.hh153Save,sel?.value||null)});
- }catch(e){console.warn('housing supervisor assignments',e);toast('تعذر تحميل توزيع الشقق: '+(e.message||e),true)}finally{decorating=false}
+ }catch(e){console.warn('housing supervisor assignments',e)}finally{decorating=false}
 }
 function applyHousingOnly(){
- if(!window.me?.housing_only)return;
+ const m=currentMe();if(!m?.housing_only)return;
  document.querySelectorAll('#desktopNav [data-go]:not([data-go="housing"]),#mobileNav [data-go]:not([data-go="housing"])').forEach(x=>x.remove());
  const launcher=document.getElementById('moduleLauncherV120');if(launcher)launcher.style.display='none';
  if(!window.__hh153HousingOnlyOpened&&document.querySelector('#desktopNav [data-go="housing"],#mobileNav [data-go="housing"]')){window.__hh153HousingOnlyOpened=true;setTimeout(()=>window.go?.('housing'),60)}
 }
-document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(t?.closest('[data-hht="settings"]'))setTimeout(()=>decorateSettings(true),100)},true);
-const prevRefresh=window.refreshAll;if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);setTimeout(()=>{decorateSettings(true);applyHousingOnly()},140);return r};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{decorateSettings();applyHousingOnly()},350),{once:true});else setTimeout(()=>{decorateSettings();applyHousingOnly()},350);
+function kick(){decorateSettings();applyHousingOnly()}
+document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(t?.closest('[data-hht="settings"]')){setTimeout(()=>decorateSettings(true),80);setTimeout(()=>decorateSettings(true),350)}},true);
+const prevRefresh=window.refreshAll;if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);setTimeout(kick,120);return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(kick,150);setTimeout(kick,600);setTimeout(kick,1400)},{once:true});else{setTimeout(kick,100);setTimeout(kick,500);setTimeout(kick,1200)}
 })();
 </script>
