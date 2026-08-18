@@ -6,8 +6,7 @@ on:
       - 007-operations-android
     paths:
       - 'android-007/portal/modules_v120_patch.html'
-      - 'android-007/portal/hurghada_housing_v130_patch.html'
-      - 'android-007/portal/hurghada_housing_v131_hotfix.html'
+      - 'android-007/portal/hurghada_housing_v132_patch.html.gz.b64'
       - '.github/workflows/sync-007-web-modules.yml'
   workflow_dispatch:
 
@@ -23,28 +22,31 @@ jobs:
         with:
           ref: 007-operations-android
 
-      - name: Validate modular patch JavaScript
+      - name: Decode and validate v1.3.2
         shell: bash
         run: |
           set -euo pipefail
+          base64 --decode android-007/portal/hurghada_housing_v132_patch.html.gz.b64 | gzip --decompress > /tmp/hh132.html
           python - <<'PY'
           from pathlib import Path
           import re
           patches=[
             Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
-            Path('android-007/portal/hurghada_housing_v130_patch.html').read_text(encoding='utf-8'),
-            Path('android-007/portal/hurghada_housing_v131_hotfix.html').read_text(encoding='utf-8'),
+            Path('/tmp/hh132.html').read_text(encoding='utf-8'),
           ]
           scripts=[]
           for p in patches:
             scripts += re.findall(r'<script[^>]*>(.*?)</script>',p,flags=re.S)
           if not scripts: raise SystemExit('ERROR: no scripts found')
-          Path('/tmp/modules-v131.js').write_text('\n'.join(scripts),encoding='utf-8')
-          print('scripts',len(scripts),'bytes',Path('/tmp/modules-v131.js').stat().st_size)
+          Path('/tmp/modules-v132.js').write_text('\n'.join(scripts),encoding='utf-8')
+          print('scripts',len(scripts),'bytes',Path('/tmp/modules-v132.js').stat().st_size)
           PY
-          node --check /tmp/modules-v131.js
+          node --check /tmp/modules-v132.js
+          grep -q 'hh132Script' /tmp/hh132.html
+          grep -q 'إثبات الساعات' /tmp/hh132.html
+          grep -q 'خرجوا من السكن' /tmp/hh132.html
 
-      - name: Inject modular UI into web source
+      - name: Inject clean modular UI into web source
         shell: bash
         run: |
           set -euo pipefail
@@ -53,6 +55,10 @@ jobs:
           import re
           page=Path('web-007/index.html')
           html=page.read_text(encoding='utf-8')
+          def strip(html,start,end):
+              if start in html and end in html:
+                  return re.sub(re.escape(start)+r'.*?'+re.escape(end)+'\n?', '', html, flags=re.S)
+              return html
           def inject(html,start,end,patch):
               block=start+'\n'+patch+'\n'+end
               if start in html and end in html:
@@ -60,15 +66,19 @@ jobs:
               if '</body>' not in html: raise SystemExit('ERROR: </body> missing in web source')
               return html.replace('</body>',block+'\n</body>',1)
           html=inject(html,'<!-- MODULES_V120_START -->','<!-- MODULES_V120_END -->',Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'))
-          html=inject(html,'<!-- HURGHADA_HOUSING_V130_START -->','<!-- HURGHADA_HOUSING_V130_END -->',Path('android-007/portal/hurghada_housing_v130_patch.html').read_text(encoding='utf-8'))
-          html=inject(html,'<!-- HURGHADA_HOUSING_V131_START -->','<!-- HURGHADA_HOUSING_V131_END -->',Path('android-007/portal/hurghada_housing_v131_hotfix.html').read_text(encoding='utf-8'))
+          html=strip(html,'<!-- HURGHADA_HOUSING_V130_START -->','<!-- HURGHADA_HOUSING_V130_END -->')
+          html=strip(html,'<!-- HURGHADA_HOUSING_V131_START -->','<!-- HURGHADA_HOUSING_V131_END -->')
+          html=inject(html,'<!-- HURGHADA_HOUSING_V132_START -->','<!-- HURGHADA_HOUSING_V132_END -->',Path('/tmp/hh132.html').read_text(encoding='utf-8'))
           page.write_text(html,encoding='utf-8')
           print('web source bytes',len(html))
           PY
           grep -q 'modulesV120Script' web-007/index.html
-          grep -q 'hh131Script' web-007/index.html
-          grep -q 'HURGHADA_HOUSING_V131_START' web-007/index.html
-          grep -q 'لا يوجد «نظام سكن»' web-007/index.html
+          grep -q 'hh132Script' web-007/index.html
+          grep -q 'HURGHADA_HOUSING_V132_START' web-007/index.html
+          grep -q 'إثبات الساعات' web-007/index.html
+          grep -q 'خرجوا من السكن' web-007/index.html
+          if grep -q 'HURGHADA_HOUSING_V130_START' web-007/index.html; then exit 1; fi
+          if grep -q 'HURGHADA_HOUSING_V131_START' web-007/index.html; then exit 1; fi
 
       - name: Mark validated web UI
         shell: bash
@@ -76,11 +86,11 @@ jobs:
           set -euo pipefail
           mkdir -p build-status
           {
-            echo '007 Operations Web Modules v1.3.1'
+            echo '007 Operations Web Modules v1.3.2'
             echo 'status=SUCCESS'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } > build-status/007-web-modules-v1.3.1.txt
+          } > build-status/007-web-modules-v1.3.2.txt
 
       - name: Commit synchronized web source
         shell: bash
@@ -88,6 +98,6 @@ jobs:
           set -euo pipefail
           git config user.name '007 Web Sync'
           git config user.email 'actions@users.noreply.github.com'
-          git add web-007/index.html build-status/007-web-modules-v1.3.1.txt
-          git commit -m 'Sync clean Hurghada housing v1.3.1 UI [skip ci]' || exit 0
+          git add web-007/index.html build-status/007-web-modules-v1.3.2.txt
+          git commit -m 'Sync Hurghada housing v1.3.2 evidence and archive UI [skip ci]' || exit 0
           git push origin HEAD:007-operations-android
