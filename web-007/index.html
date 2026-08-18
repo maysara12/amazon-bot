@@ -7,36 +7,35 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>007 Operations Portal</title>
 <style>
-html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tahoma,Arial,sans-serif}.boot{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 15%,#17304e,#07111f 55%)}.box{text-align:center;padding:24px}.logo{width:90px;height:90px;border:1px solid #ddb75a;border-radius:24px;display:grid;place-items:center;margin:auto;color:#f1cf79;font-weight:900;font-size:29px;background:#0d1e31}.msg{margin-top:18px;color:#91a4b9;line-height:1.8}.err{color:#ffadb5;max-width:460px}
+html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tahoma,Arial,sans-serif}.boot{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 15%,#17304e,#07111f 55%)}.box{text-align:center;padding:24px}.logo{width:90px;height:90px;border:1px solid #ddb75a;border-radius:24px;display:grid;place-items:center;margin:auto;color:#f1cf79;font-weight:900;font-size:29px;background:#0d1e31}.msg{margin-top:18px;color:#91a4b9;line-height:1.8}.err{color:#ffadb5;max-width:560px}
 </style>
 </head>
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>Operations Portal</h2><div id="msg" class="msg">جاري تشغيل منظومة 007…</div></div></div>
-<script id="cleanPortalComposerV132">
+<script id="cleanPortalComposerV132c">
 (async function(){
-  const ROOT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
+  const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
+  const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
   const stamp=Date.now();
-  const text=async name=>{const r=await fetch(ROOT+name+'?v='+stamp,{cache:'no-store'});if(!r.ok)throw new Error(name+' HTTP '+r.status);return r.text()};
+  const get=async url=>{const r=await fetch(url+(url.includes('?')?'&':'?')+'v='+stamp,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status+' — '+url.split('/').pop());return r.text()};
   const gunzipB64=async b64=>{
-    if(typeof DecompressionStream==='undefined')throw new Error('المتصفح يحتاج تحديث');
+    if(typeof DecompressionStream==='undefined')throw new Error('المتصفح يحتاج تحديث لدعم واجهة السكن');
     const clean=String(b64||'').replace(/\s+/g,'');
     const bytes=Uint8Array.from(atob(clean),c=>c.charCodeAt(0));
     const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
     return new Response(stream).text();
   };
   try{
-    const files=await Promise.all([
-      text('portal.b64.part1'),text('portal.b64.part2'),text('portal.b64.part3'),text('portal.b64.part4'),
-      text('v110_patch.html'),text('modules_v120_patch.html'),text('hurghada_housing_v132_patch.html.gz.b64'),text('auth_v111_patch.html')
+    const [base,v110,core,housingB64,auth]=await Promise.all([
+      get(BASE),get(CURRENT+'v110_patch.html'),get(CURRENT+'modules_v120_patch.html'),get(CURRENT+'hurghada_housing_v132_patch.html.gz.b64'),get(CURRENT+'auth_v111_patch.html')
     ]);
-    const base=await gunzipB64(files.slice(0,4).join(''));
-    const v110=files[4],core=files[5],housing=await gunzipB64(files[6]),auth=files[7];
-    if(!base.includes('</body>'))throw new Error('Base portal غير صالح');
+    const housing=await gunzipB64(housingB64);
+    if(!base.includes('</body>')||!base.includes('SUPABASE_URL'))throw new Error('Base portal غير صالح');
     if(!core.includes('data-core="orders-only"'))throw new Error('Core غير نظيف');
     if(/إضافة ساكن|نظام السكن|المساهمة الشهرية/.test(core))throw new Error('Legacy Housing موجود في Core');
     if(!housing.includes('hh132Script')||!housing.includes('إثبات الساعات')||!housing.includes('خرجوا من السكن'))throw new Error('Housing v1.3.2 غير مكتملة');
     if(/hurghadaHousingV130Script|hh131Script/.test(housing))throw new Error('Housing قديمة موجودة');
-    let final=base.replace('</body>',v110+'\n'+core+'\n'+housing+'\n'+auth+'\n</body>');
+    const final=base.replace('</body>',v110+'\n'+core+'\n'+housing+'\n'+auth+'\n</body>');
     if(/إضافة ساكن|نظام السكن|المساهمة الشهرية/.test(final))throw new Error('Legacy Housing تسربت للنسخة النهائية');
     document.open();document.write(final);document.close();
   }catch(e){
