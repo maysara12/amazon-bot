@@ -1,0 +1,1 @@
+final standalone v1.0.3 with embedded portal and premium icon
