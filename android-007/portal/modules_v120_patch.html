@@ -27,7 +27,7 @@
     ['housingResidentModal','housingPaymentModal','housingUnitModal','sec-housing','h130RequestModal','h130UnitModal','h130HoursModal','sec-housing130','hh131Modal','sec-hh131'].forEach(id=>document.getElementById(id)?.remove());
   }
   function buildModuleNav(){
-    if(!window.me)return;
+    if(!me)return;
     const defs=[
       ['dashboard','⌂','الرئيسية',true],
       ['orders','▤','الأوردرات',moduleEnabled('orders')],
@@ -49,7 +49,7 @@
   async function loadModuleData(){try{appModules=await api('app_modules?select=*&order=sort_order.asc')||[]}catch(_){appModules=[]}}
   window.refreshAll=async function(){await baseRefreshAll();await loadModuleData();ensureSections();buildModuleNav();renderModuleLauncher();renderOrdersOverview()};
   function renderModuleLauncher(){
-    const sec=document.getElementById('sec-dashboard');if(!sec||!window.me)return;
+    const sec=document.getElementById('sec-dashboard');if(!sec||!me)return;
     let wrap=document.getElementById('moduleLauncherV120');if(!wrap){wrap=document.createElement('div');wrap.id='moduleLauncherV120';sec.insertBefore(wrap,sec.firstChild)}
     const defs=[['orders','▤','الأوردرات','رفع ومراجعة ومتابعة ردود الشركة'],['zones','⌖','التشغيل','الزونات ومناطق التشغيل'],['users','♟','الإدارة','المستخدمون والصلاحيات']]
       .filter(x=>(x[0]!=='zones'||me.role!=='SUPERVISOR')&&(x[0]!=='users'||admin())&&(x[0]!=='orders'||moduleEnabled('orders')));
