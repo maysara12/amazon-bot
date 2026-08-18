@@ -1,0 +1,11 @@
+<style id="appUiV136Style">
+html.app-android .fab{display:none!important}
+</style>
+<script id="appUiV136Script">
+(function(){
+  try{
+    const p=new URLSearchParams(location.search);
+    if(p.get('app')==='android') document.documentElement.classList.add('app-android');
+  }catch(_){ }
+})();
+</script>
