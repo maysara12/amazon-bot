@@ -2,13 +2,50 @@
 .side-brand .mark.brand-logo-007,.auth-brand .mark.brand-logo-007{background-color:#0c1a2d;background-repeat:no-repeat;background-position:center;background-size:cover;color:transparent;overflow:hidden}
 .side-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 4px 18px #0005}
 .auth-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 8px 30px #0006}
+.side-brand b{letter-spacing:.35px}
 </style>
-<script id="brandLogoV138Script">
+<script id="brandLogoV138Script" data-brand-version="1.5.0">
 (function(){
   'use strict';
   const ROOT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/icon/';
   const parts=['ic_launcher.webp.b64.part1','ic_launcher.webp.b64.part2','ic_launcher.webp.b64.part3','ic_launcher.webp.b64.part4'];
+
+  function applyUnifiedBrand(){
+    document.title='007 Operations Hub';
+
+    const side=document.querySelector('.side-brand');
+    if(side){
+      const title=side.querySelector('b');
+      const sub=side.querySelector('small');
+      if(title)title.textContent='OPERATIONS HUB';
+      if(sub)sub.textContent='Unified 007 Operations';
+    }
+
+    const auth=document.querySelector('.auth-brand');
+    if(auth){
+      const h1=auth.querySelector('h1');
+      const p=auth.querySelector('p');
+      if(h1)h1.innerHTML='منظومة <span>عمليات 007</span>';
+      if(p)p.textContent='منصة موحدة لإدارة ومتابعة عمليات 007 والموديولات التشغيلية من مكان واحد.';
+      const points=auth.querySelectorAll('.brand-point');
+      const labels=[
+        ['✓','صلاحيات منظمة حسب الدور والزونات'],
+        ['▣','موديولات تشغيلية موحدة في منصة واحدة'],
+        ['↻','متابعة وتحديثات لحظية للعمليات']
+      ];
+      points.forEach((el,i)=>{
+        if(!labels[i])return;
+        const icon=el.querySelector('i');
+        if(icon)icon.textContent=labels[i][0];
+        const text=[...el.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);
+        if(text)text.textContent=' '+labels[i][1];
+        else el.append(document.createTextNode(' '+labels[i][1]));
+      });
+    }
+  }
+
   async function loadLogo(){
+    applyUnifiedBrand();
     try{
       const chunks=await Promise.all(parts.map(async n=>{const r=await fetch(ROOT+n,{cache:'force-cache'});if(!r.ok)throw new Error('logo '+r.status);return r.text()}));
       const b64=chunks.join('').replace(/\s+/g,'');
@@ -18,13 +55,15 @@
         el.classList.add('brand-logo-007');
         el.textContent='';
         el.style.backgroundImage=`url("${src}")`;
-        el.setAttribute('aria-label','007');
+        el.setAttribute('aria-label','007 Operations Hub');
       });
       let fav=document.querySelector('link[rel="icon"]');
       if(!fav){fav=document.createElement('link');fav.rel='icon';document.head.appendChild(fav)}
       fav.type='image/webp';fav.href=src;
     }catch(e){console.warn('007 brand logo unavailable',e)}
   }
+
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadLogo,{once:true});else loadLogo();
+  setTimeout(applyUnifiedBrand,500);
 })();
 </script>
