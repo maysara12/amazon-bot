@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV134">
+<script id="fullPortalComposerV135">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
@@ -23,41 +23,32 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     if(!r.ok)throw new Error('HTTP '+r.status+' — '+url.split('/').pop());
     return r.text();
   };
-  const gunzipB64=async b64=>{
-    if(typeof DecompressionStream==='undefined')throw new Error('المتصفح يحتاج تحديث لدعم واجهة السكن الجديدة');
-    const clean=String(b64||'').replace(/\s+/g,'');
-    const bytes=Uint8Array.from(atob(clean),c=>c.charCodeAt(0));
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return new Response(stream).text();
-  };
   try{
-    const [base,v110,core,housingB64,authPatch,realtimePatch]=await Promise.all([
+    const [base,v110,core,housing,housingFix,authPatch,realtimePatch]=await Promise.all([
       get(BASE),
       get(CURRENT+'v110_patch.html'),
       get(CURRENT+'modules_v120_patch.html'),
-      get(CURRENT+'hurghada_housing_v132_patch.html.gz.b64'),
+      get(CURRENT+'hurghada_housing_v132_patch.html'),
+      get(CURRENT+'housing_v135_fix_patch.html'),
       get(CURRENT+'auth_v111_patch.html'),
       get(CURRENT+'realtime_v134_patch.html')
     ]);
-    const housing=await gunzipB64(housingB64);
 
     if(!base.includes('</body>')||!base.includes('SUPABASE_URL'))throw new Error('قاعدة البورتال غير صالحة');
     if(!v110.includes('v110Styles')||/ISSUE_LABELS|STATUS_LABELS|statusBadge\(/.test(v110))throw new Error('واجهة الأوردرات غير متوافقة');
     if(!core.includes('data-core="orders-only"')||!core.includes("if(!me)return;")||core.includes('window.me'))throw new Error('Core الموديولات غير صالح');
     if(!housing.includes('hh132Script')||!housing.includes('إثبات الساعات')||!housing.includes('خرجوا من السكن'))throw new Error('موديول السكن غير مكتمل');
     if(/hurghadaHousingV130Script|hh131Script/.test(housing))throw new Error('نسخة سكن قديمة موجودة');
+    if(!housingFix.includes('housingV135FixScript')||!housingFix.includes('housing_create_checkout_request'))throw new Error('تحديث السكن v1.3.5 غير مكتمل');
     if(!authPatch.includes('loginErrorV112Script'))throw new Error('تسجيل الدخول غير مكتمل');
     if(!realtimePatch.includes('realtimeV134Script')||!realtimePatch.includes('postgres_changes'))throw new Error('Realtime غير مكتمل');
 
-    const patches=[v110,core,housing,authPatch,realtimePatch].join('\n');
+    const patches=[v110,core,housing,housingFix,authPatch,realtimePatch].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
-
-    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','loginErrorV112Script','realtimeV134Script'];
+    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','housingV135FixScript','loginErrorV112Script','realtimeV134Script'];
     for(const marker of required){if(!final.includes(marker))throw new Error('جزء مفقود: '+marker)}
 
-    document.open();
-    document.write(final);
-    document.close();
+    document.open();document.write(final);document.close();
   }catch(e){
     console.error('007 full portal composer',e);
     const m=document.getElementById('msg');
