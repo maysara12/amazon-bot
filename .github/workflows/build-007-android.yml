@@ -44,7 +44,18 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Decode Hurghada housing v1.3.2
+      - name: Verify live portal linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'APP_VERSION = "1.3.3"' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
+          grep -q 'PUBLIC_PORTAL_ORIGIN + "/portal?app=android&v=" + APP_VERSION' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
+          grep -q 'LOAD_NO_CACHE' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
+          grep -q 'LOCAL_FALLBACK_URL' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
+          curl --fail --silent --show-error --location 'https://007-operations-portal.vercel.app/portal' --output /tmp/live-portal.html
+          grep -q '007 Operations' /tmp/live-portal.html
+
+      - name: Decode Hurghada housing fallback
         shell: bash
         run: |
           set -euo pipefail
@@ -53,7 +64,7 @@ jobs:
           grep -q 'إثبات الساعات' /tmp/hh132.html
           grep -q 'خرجوا من السكن' /tmp/hh132.html
 
-      - name: Fetch verified immutable portal base
+      - name: Fetch verified immutable fallback base
         shell: bash
         run: |
           set -euo pipefail
@@ -62,12 +73,8 @@ jobs:
             --output /tmp/base.html
           grep -q 'SUPABASE_URL' /tmp/base.html
           grep -q '</body>' /tmp/base.html
-          if grep -Eq 'hh131Script|hurghadaHousingV130Script' /tmp/base.html; then
-            echo 'ERROR: immutable base unexpectedly contains Housing patches'
-            exit 1
-          fi
 
-      - name: Assemble bundled 007 portal UI
+      - name: Assemble bundled fallback portal UI
         shell: bash
         run: |
           set -euo pipefail
@@ -86,27 +93,25 @@ jobs:
           ]
           html = page.read_text(encoding='utf-8')
           if '</body>' not in html:
-              raise SystemExit('ERROR: </body> not found in verified base portal')
+              raise SystemExit('ERROR: </body> not found in fallback portal')
           html = html.replace('</body>', '\n'.join(patches) + '\n</body>', 1)
           page.write_text(html, encoding='utf-8')
           scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, flags=re.S)
-          Path('/tmp/007-v132.js').write_text('\n'.join(scripts), encoding='utf-8')
+          Path('/tmp/007-v133-fallback.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
 
-          node --check /tmp/007-v132.js
+          node --check /tmp/007-v133-fallback.js
           test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 100000
           grep -q 'SUPABASE_URL' android-007/app/src/main/assets/www/index.html
-          grep -q 'authV111Script' android-007/app/src/main/assets/www/index.html
           grep -q 'loginErrorV112Script' android-007/app/src/main/assets/www/index.html
           grep -q 'data-core="orders-only"' android-007/app/src/main/assets/www/index.html
           grep -q 'hh132Script' android-007/app/src/main/assets/www/index.html
           grep -q 'إثبات الساعات' android-007/app/src/main/assets/www/index.html
           grep -q 'خرجوا من السكن' android-007/app/src/main/assets/www/index.html
-          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية|hh131Script|hurghadaHousingV130Script' android-007/app/src/main/assets/www/index.html; then
-            echo 'ERROR: legacy Housing leaked into final bundle'
+          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(|window\.me' android-007/app/src/main/assets/www/index.html; then
+            echo 'ERROR: stale portal compatibility identifier in fallback bundle'
             exit 1
           fi
-          echo "Bundled clean v1.3.2 portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
 
       - name: Assemble exact premium 007 launcher icon
         shell: bash
@@ -122,9 +127,11 @@ jobs:
           test "$(wc -c < android-007/app/src/main/res/drawable/ic_launcher_007.webp)" -eq 44070
           echo '235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp' | sha1sum -c -
 
-      - name: Verify v1.3.2 version
+      - name: Verify v1.3.3 version
         shell: bash
-        run: grep -q "versionName '1.3.2'" android-007/app/build.gradle
+        run: |
+          grep -q "versionCode 13" android-007/app/build.gradle
+          grep -q "versionName '1.3.3'" android-007/app/build.gradle
 
       - name: Build Debug APK
         working-directory: android-007
@@ -133,27 +140,29 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 007-Operations-v1.3.2
+          name: 007-Operations-v1.3.3-Live
           path: android-007/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Mark successful v1.3.2 build
+      - name: Mark successful v1.3.3 build
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build-status
           {
-            echo '007 Operations APK v1.3.2'
+            echo '007 Operations APK v1.3.3'
             echo 'status=SUCCESS'
+            echo 'mode=LIVE_PORTAL_WITH_BUNDLED_FALLBACK'
+            echo 'portal=https://007-operations-portal.vercel.app/portal'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo 'artifact=007-Operations-v1.3.2'
-          } > build-status/007-operations-v1.3.2.txt
+            echo 'artifact=007-Operations-v1.3.3-Live'
+          } > build-status/007-operations-v1.3.3.txt
           git config user.name '007 APK Builder'
           git config user.email 'actions@users.noreply.github.com'
-          git add build-status/007-operations-v1.3.2.txt
-          git commit -m 'Record successful 007 Operations v1.3.2 build [skip ci]' || exit 0
+          git add build-status/007-operations-v1.3.3.txt
+          git commit -m 'Record successful 007 Operations v1.3.3 build [skip ci]' || exit 0
           for i in 1 2 3; do
             git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
             sleep 3
