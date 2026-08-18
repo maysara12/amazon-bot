@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private WebView webView;
+    private View splashView;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_CODE = 1001;
     private static final String PORTAL_URL = "https://007-operations-portal-e5gbhey78-virgitech0007-3160s-projects.vercel.app/?app=android-native";
@@ -26,6 +27,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
+        splashView = findViewById(R.id.splashView);
+
         webView.setBackgroundColor(android.graphics.Color.rgb(7, 17, 31));
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
@@ -33,24 +36,34 @@ public class MainActivity extends Activity {
         webView.getSettings().setAllowFileAccess(true);
         webView.getSettings().setAllowContentAccess(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        webView.getSettings().setUserAgentString(webView.getSettings().getUserAgentString() + " 007OperationsAndroid/1.0.1");
+        webView.getSettings().setUserAgentString(webView.getSettings().getUserAgentString() + " 007OperationsAndroid/1.0.2");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                if (splashView.getVisibility() != View.VISIBLE) {
+                    splashView.setAlpha(1f);
+                    splashView.setVisibility(View.VISIBLE);
+                }
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                splashView.animate()
+                        .alpha(0f)
+                        .setDuration(350)
+                        .withEndAction(() -> splashView.setVisibility(View.GONE))
+                        .start();
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
-                    Toast.makeText(MainActivity.this, "تعذر الاتصال ببوابة 007. حاول مرة أخرى.", Toast.LENGTH_LONG).show();
+                    splashView.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "تعذر الاتصال ببوابة 007. تأكد من الإنترنت وحاول مرة أخرى.", Toast.LENGTH_LONG).show();
                 }
             }
 
