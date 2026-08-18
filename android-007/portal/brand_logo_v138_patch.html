@@ -2,9 +2,13 @@
 .side-brand .mark.brand-logo-007,.auth-brand .mark.brand-logo-007{background-color:#0c1a2d;background-repeat:no-repeat;background-position:center;background-size:cover;color:transparent;overflow:hidden}
 .side-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 4px 18px #0005}
 .auth-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 8px 30px #0006}
-.side-brand b{letter-spacing:.35px}
+/* Pin the global product brand even if the legacy base re-renders its old text. */
+.side-brand b{font-size:0!important;letter-spacing:.35px}
+.side-brand b::after{content:'OPERATIONS HUB';font-size:14px!important;color:var(--gold2);font-weight:800;white-space:nowrap}
+.side-brand small{font-size:0!important}
+.side-brand small::after{content:'Unified 007 Operations';font-size:11px!important;color:var(--muted);white-space:nowrap}
 </style>
-<script id="brandLogoV138Script" data-brand-version="1.5.0">
+<script id="brandLogoV138Script" data-brand-version="1.5.1">
 (function(){
   'use strict';
   const ROOT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/icon/';
@@ -12,7 +16,6 @@
 
   function applyUnifiedBrand(){
     document.title='007 Operations Hub';
-
     const side=document.querySelector('.side-brand');
     if(side){
       const title=side.querySelector('b');
@@ -20,7 +23,6 @@
       if(title)title.textContent='OPERATIONS HUB';
       if(sub)sub.textContent='Unified 007 Operations';
     }
-
     const auth=document.querySelector('.auth-brand');
     if(auth){
       const h1=auth.querySelector('h1');
@@ -64,6 +66,5 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadLogo,{once:true});else loadLogo();
-  setTimeout(applyUnifiedBrand,500);
 })();
 </script>
