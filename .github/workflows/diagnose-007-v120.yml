@@ -1,0 +1,72 @@
+name: Diagnose 007 v1.2.0 APK
+
+on:
+  push:
+    branches:
+      - 007-operations-android
+    paths:
+      - '.github/workflows/diagnose-007-v120.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 007-operations-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'platform-tools'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Assemble v1.2.0 web bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android-007/app/src/main/assets/www
+          cat android-007/portal/portal.b64.part1 android-007/portal/portal.b64.part2 android-007/portal/portal.b64.part3 android-007/portal/portal.b64.part4 | base64 --decode | gzip --decompress > android-007/app/src/main/assets/www/index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          page=Path('android-007/app/src/main/assets/www/index.html')
+          patches=[Path('android-007/portal/v110_patch.html').read_text(),Path('android-007/portal/auth_v111_patch.html').read_text(),Path('android-007/portal/modules_v120_patch.html').read_text()]
+          html=page.read_text()
+          html=html.replace('</body>','\n'.join(patches)+'\n</body>',1)
+          page.write_text(html)
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',html,flags=re.S)
+          Path('/tmp/all-007.js').write_text('\n'.join(scripts))
+          print('bundle bytes',len(html),'scripts',len(scripts))
+          PY
+          node --check /tmp/all-007.js
+      - name: Build and record result
+        shell: bash
+        run: |
+          set +e
+          cd android-007
+          gradle :app:assembleDebug --stacktrace > /tmp/gradle-v120.log 2>&1
+          rc=$?
+          cd ..
+          mkdir -p build-status
+          if [ "$rc" -eq 0 ]; then status=SUCCESS; else status=FAILED; fi
+          {
+            echo '007 Operations APK v1.2.0 Diagnostic'
+            echo "status=$status"
+            echo "commit=${GITHUB_SHA}"
+            echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo '--- tail ---'
+            tail -n 35 /tmp/gradle-v120.log
+          } > build-status/007-operations-v1.2.0-diagnostic.txt
+          git config user.name '007 APK Diagnostic'
+          git config user.email 'actions@users.noreply.github.com'
+          git add build-status/007-operations-v1.2.0-diagnostic.txt
+          git commit -m 'Record v1.2.0 APK diagnostic [skip ci]' || true
+          git push origin HEAD:007-operations-android
+          exit "$rc"
