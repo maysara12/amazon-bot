@@ -212,25 +212,8 @@
       });
     }catch(e){console.warn('decorate checkout requests',e)}finally{decorating=false}
   }
-  async function decorateStays(){
-    const root=byId('hh132Body');if(!root)return;
-    const table=[...root.querySelectorAll('.hh132-table')].find(t=>t.textContent.includes('تاريخ الدخول')&&t.textContent.includes('مدة الإقامة'));
-    if(!table||table.dataset.hh135Billing==='1')return;
-    try{
-      const active=await api('housing_stays?select=id,rider_id,check_in_date,billing_start_date&status=eq.ACTIVE&order=check_in_date.desc')||[];
-      const hr=table.tHead?.rows?.[0];if(!hr)return;
-      const heads=[...hr.cells];const inIdx=heads.findIndex(c=>c.textContent.includes('تاريخ الدخول'));if(inIdx<0)return;
-      const th=document.createElement('th');th.textContent='المحاسبة من';hr.insertBefore(th,hr.cells[inIdx+1]||null);
-      [...table.tBodies[0].rows].forEach((tr,i)=>{
-        const s=active[i];const td=document.createElement('td');
-        if(s){const cut=(s.billing_start_date||s.check_in_date)!==s.check_in_date;td.innerHTML=`<span class="${cut?'hh135-billing-cutover':''}">${arDate(s.billing_start_date||s.check_in_date)}</span>${cut?'<br><small class="muted">ما قبلها متسوي</small>':''}`}
-        else td.textContent='—';
-        tr.insertBefore(td,tr.cells[inIdx+1]||null);
-      });
-      table.dataset.hh135Billing='1';
-    }catch(e){console.warn('decorate stays billing',e)}
-  }
-  function scheduleDecorate(){setTimeout(()=>{decorateRequests();decorateStays()},80)}
+  async function decorateStays(){ return; } // v1.4.4: handled only by housing_stays_cleanup_v142_patch
+  function scheduleDecorate(){setTimeout(()=>{decorateRequests()},120)}
   document.addEventListener('click',e=>{
     const t=e.target instanceof Element?e.target:null;if(!t)return;
     const inp=t.closest('[data-in]');if(inp){stop(e);openCheckIn();return}
@@ -238,11 +221,12 @@
     const save=t.closest('#hh132ReqSave');if(save){stop(e);saveRequest();return}
     const proof=t.closest('[data-hh135-proof-request]');if(proof){stop(e);openProofRequest(proof.dataset.hh135ProofRequest);return}
     const ps=t.closest('#hh135ProofSave');if(ps){stop(e);saveProofRequest();return}
+    const tab=t.closest('[data-hht]');
+    if(tab)setTimeout(scheduleDecorate,120);
   },true);
   const oldRefresh=window.refreshAll;
   if(typeof oldRefresh==='function')window.refreshAll=async function(){const r=await oldRefresh.apply(this,arguments);scheduleDecorate();return r};
-  const obs=new MutationObserver(()=>{ensureFields();scheduleDecorate()});
-  const start=()=>{ensureFields();if(document.body)obs.observe(document.body,{childList:true,subtree:true});scheduleDecorate()};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,0));else setTimeout(start,0);
+  const start=()=>{ensureFields();scheduleDecorate()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,0),{once:true});else setTimeout(start,0);
 })();
 </script>
