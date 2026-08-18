@@ -1,0 +1,49 @@
+<style id="zonesArchiveV153Style">
+.zone-card-v153{position:relative}.zone-remove-v153{margin-top:12px;border:1px solid #6f3039;background:#351821;color:#ffb3bb;border-radius:9px;padding:7px 10px;font-weight:800;font-size:12px}.zone-remove-v153:hover{background:#4a1e29;border-color:#964253}
+</style>
+<script id="zonesArchiveV153Script" data-version="1.5.3">
+(function(){
+'use strict';
+if(window.__zonesArchiveV153)return;window.__zonesArchiveV153=true;
+const isAdmin=()=>!!me&&(['OWNER','ADMIN'].includes(me.role)||me.can_manage_users===true);
+const baseRender=window.renderZones;
+function decorateZones(){
+  const list=document.getElementById('zonesList');
+  if(!list||!isAdmin()||!Array.isArray(zones))return;
+  const cards=[...list.querySelectorAll('.grid3 > .card')];
+  cards.forEach((card,i)=>{
+    const z=zones[i];if(!z)return;
+    card.classList.add('zone-card-v153');
+    if(card.querySelector('[data-zone-archive-v153]'))return;
+    const b=document.createElement('button');
+    b.type='button';b.className='zone-remove-v153';
+    b.dataset.zoneArchiveV153=z.id;b.dataset.zoneNameV153=z.name_ar||z.name_en||z.code||'الزون';
+    b.textContent='إزالة الزون';
+    card.appendChild(b);
+  });
+}
+if(typeof baseRender==='function'){
+  window.renderZones=function(){const r=baseRender.apply(this,arguments);decorateZones();return r};
+}
+async function archiveZone(id,name,btn){
+  if(!isAdmin())return toast('إزالة الزونات متاحة للإدارة فقط',true);
+  const ok=confirm(`إزالة زون «${name}» من التشغيل؟\n\nالزون سيختفي من القوائم الجديدة لكن السجلات التاريخية لن تُحذف.`);
+  if(!ok)return;
+  if(btn)btn.disabled=true;
+  try{
+    await api('rpc/archive_zone',{method:'POST',body:JSON.stringify({p_zone_id:id})});
+    toast('تمت إزالة الزون من التشغيل ✅');
+    await refreshAll();
+    if(document.getElementById('sec-zones')?.classList.contains('active'))window.renderZones();
+  }catch(e){toast(e.message||'تعذر إزالة الزون',true)}
+  finally{if(btn)btn.disabled=false}
+}
+document.addEventListener('click',e=>{
+  const b=e.target instanceof Element?e.target.closest('[data-zone-archive-v153]'):null;
+  if(b){e.preventDefault();e.stopPropagation();archiveZone(b.dataset.zoneArchiveV153,b.dataset.zoneNameV153,b)}
+  const z=e.target instanceof Element?e.target.closest('[data-go="zones"]'):null;
+  if(z)setTimeout(decorateZones,100);
+},true);
+setTimeout(()=>{if(document.getElementById('sec-zones')?.classList.contains('active'))decorateZones()},350);
+})();
+</script>
