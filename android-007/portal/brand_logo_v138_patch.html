@@ -6,9 +6,17 @@
 .side-brand b{font-size:0!important;letter-spacing:.35px}
 .side-brand b::after{content:'OPERATIONS HUB';font-size:14px!important;color:var(--gold2);font-weight:800;white-space:nowrap}
 .side-brand small{font-size:0!important}
-.side-brand small::after{content:'Unified 007 Operations';font-size:11px!important;color:var(--muted);white-space:nowrap}
+.side-brand small::after{content:'Integrated Operations Management';font-size:10.5px!important;color:var(--muted);white-space:nowrap}
+/* Compact executive shortcuts on the dashboard only. */
+#moduleLauncherV120 .module-launcher{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:0 0 14px!important}
+#moduleLauncherV120 .module-card{min-height:82px!important;padding:11px 13px!important;border-radius:14px!important;display:grid!important;grid-template-columns:34px minmax(0,1fr)!important;grid-template-rows:auto auto!important;column-gap:10px!important;row-gap:1px!important;align-items:center!important}
+#moduleLauncherV120 .module-card i{width:34px!important;height:34px!important;border-radius:9px!important;font-size:16px!important;margin:0!important;grid-row:1/3!important;grid-column:1!important}
+#moduleLauncherV120 .module-card b{font-size:14px!important;line-height:1.3!important;grid-column:2!important}
+#moduleLauncherV120 .module-card small{font-size:10.5px!important;line-height:1.35!important;margin:0!important;grid-column:2!important;color:#879bb2!important}
+@media(max-width:900px){#moduleLauncherV120 .module-launcher{grid-template-columns:1fr 1fr!important}}
+@media(max-width:620px){#moduleLauncherV120 .module-launcher{grid-template-columns:1fr!important}#moduleLauncherV120 .module-card{min-height:70px!important}}
 </style>
-<script id="brandLogoV138Script" data-brand-version="1.5.1">
+<script id="brandLogoV138Script" data-brand-version="1.5.2">
 (function(){
   'use strict';
   const ROOT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/icon/';
@@ -21,7 +29,7 @@
       const title=side.querySelector('b');
       const sub=side.querySelector('small');
       if(title)title.textContent='OPERATIONS HUB';
-      if(sub)sub.textContent='Unified 007 Operations';
+      if(sub)sub.textContent='Integrated Operations Management';
     }
     const auth=document.querySelector('.auth-brand');
     if(auth){
