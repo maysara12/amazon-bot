@@ -7,8 +7,8 @@
         android:usesCleartextTraffic="false"
         android:theme="@style/AppTheme"
         android:label="007 Operations"
-        android:icon="@drawable/ic_launcher"
-        android:roundIcon="@drawable/ic_launcher">
+        android:icon="@drawable/ic_launcher_007"
+        android:roundIcon="@drawable/ic_launcher_007">
 
         <activity
             android:name=".MainActivity"
