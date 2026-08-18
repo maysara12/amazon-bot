@@ -7,6 +7,9 @@ on:
     paths:
       - 'android-007/portal/modules_v120_patch.html'
       - 'android-007/portal/hurghada_housing_v132_patch.html.gz.b64'
+      - 'android-007/portal/auth_v111_patch.html'
+      - 'android-007/portal/v110_patch.html'
+      - 'android-007/portal/portal.b64.part*'
       - '.github/workflows/sync-007-web-modules.yml'
   workflow_dispatch:
 
@@ -27,7 +30,7 @@ jobs:
           ref: 007-operations-android
           fetch-depth: 0
 
-      - name: Decode and validate v1.3.2
+      - name: Decode and validate Hurghada v1.3.2
         shell: bash
         run: |
           set -euo pipefail
@@ -42,9 +45,7 @@ jobs:
           scripts=[]
           for p in patches:
             scripts += re.findall(r'<script[^>]*>(.*?)</script>',p,flags=re.S)
-          if not scripts: raise SystemExit('ERROR: no scripts found')
           Path('/tmp/modules-v132.js').write_text('\n'.join(scripts),encoding='utf-8')
-          print('scripts',len(scripts),'bytes',Path('/tmp/modules-v132.js').stat().st_size)
           PY
           node --check /tmp/modules-v132.js
           grep -q 'data-core="orders-only"' android-007/portal/modules_v120_patch.html
@@ -56,43 +57,63 @@ jobs:
             exit 1
           fi
 
-      - name: Inject clean modular UI into web source
+      - name: Rebuild clean web source from base
         shell: bash
         run: |
           set -euo pipefail
+          cat android-007/portal/portal.b64.part1 \
+              android-007/portal/portal.b64.part2 \
+              android-007/portal/portal.b64.part3 \
+              android-007/portal/portal.b64.part4 \
+            | base64 --decode \
+            | gzip --decompress \
+            > web-007/index.html
+
+          python - <<'PY'
+          from pathlib import Path
+          base=Path('web-007/index.html')
+          html=base.read_text(encoding='utf-8')
+          if '</body>' not in html:
+              raise SystemExit('ERROR: </body> missing in base portal')
+          patches=[
+              Path('android-007/portal/v110_patch.html').read_text(encoding='utf-8'),
+              Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
+              Path('/tmp/hh132.html').read_text(encoding='utf-8'),
+              Path('android-007/portal/auth_v111_patch.html').read_text(encoding='utf-8'),
+          ]
+          html=html.replace('</body>', '\n'.join(patches)+'\n</body>',1)
+          base.write_text(html,encoding='utf-8')
+          print('clean web source bytes',len(html))
+          PY
+
+          grep -q 'data-core="orders-only"' web-007/index.html
+          grep -q 'hh132Script' web-007/index.html
+          grep -q 'إثبات الساعات' web-007/index.html
+          grep -q 'خرجوا من السكن' web-007/index.html
+          if grep -q 'hurghadaHousingV130Script' web-007/index.html; then
+            echo 'ERROR: v1.3.0 housing survived rebuild'
+            exit 1
+          fi
+          if grep -q 'hh131Script' web-007/index.html; then
+            echo 'ERROR: v1.3.1 housing survived rebuild'
+            exit 1
+          fi
+          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية' web-007/index.html; then
+            echo 'ERROR: legacy housing fields survived rebuild'
+            exit 1
+          fi
+
+      - name: Validate final web JavaScript
+        shell: bash
+        run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          page=Path('web-007/index.html')
-          html=page.read_text(encoding='utf-8')
-          def strip(html,start,end):
-              if start in html and end in html:
-                  return re.sub(re.escape(start)+r'.*?'+re.escape(end)+'\n?', '', html, flags=re.S)
-              return html
-          def inject(html,start,end,patch):
-              block=start+'\n'+patch+'\n'+end
-              if start in html and end in html:
-                  return re.sub(re.escape(start)+r'.*?'+re.escape(end),block,html,flags=re.S)
-              if '</body>' not in html: raise SystemExit('ERROR: </body> missing in web source')
-              return html.replace('</body>',block+'\n</body>',1)
-          html=inject(html,'<!-- MODULES_V120_START -->','<!-- MODULES_V120_END -->',Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'))
-          html=strip(html,'<!-- HURGHADA_HOUSING_V130_START -->','<!-- HURGHADA_HOUSING_V130_END -->')
-          html=strip(html,'<!-- HURGHADA_HOUSING_V131_START -->','<!-- HURGHADA_HOUSING_V131_END -->')
-          html=inject(html,'<!-- HURGHADA_HOUSING_V132_START -->','<!-- HURGHADA_HOUSING_V132_END -->',Path('/tmp/hh132.html').read_text(encoding='utf-8'))
-          page.write_text(html,encoding='utf-8')
-          print('web source bytes',len(html))
+          html=Path('web-007/index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',html,flags=re.S)
+          Path('/tmp/007-final-web.js').write_text('\n'.join(scripts),encoding='utf-8')
           PY
-          grep -q 'data-core="orders-only"' web-007/index.html
-          grep -q 'hh132Script' web-007/index.html
-          grep -q 'HURGHADA_HOUSING_V132_START' web-007/index.html
-          grep -q 'إثبات الساعات' web-007/index.html
-          grep -q 'خرجوا من السكن' web-007/index.html
-          if grep -q 'HURGHADA_HOUSING_V130_START' web-007/index.html; then exit 1; fi
-          if grep -q 'HURGHADA_HOUSING_V131_START' web-007/index.html; then exit 1; fi
-          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية' web-007/index.html; then
-            echo 'ERROR: legacy housing UI remains in final web source'
-            exit 1
-          fi
+          node --check /tmp/007-final-web.js
 
       - name: Mark validated web UI
         shell: bash
@@ -100,23 +121,23 @@ jobs:
           set -euo pipefail
           mkdir -p build-status
           {
-            echo '007 Operations Web Modules v1.3.2-clean'
+            echo '007 Operations Web v1.3.2 clean'
             echo 'status=SUCCESS'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > build-status/007-web-modules-v1.3.2.txt
 
-      - name: Commit synchronized web source
+      - name: Commit clean web source
         shell: bash
         run: |
           set -euo pipefail
           git config user.name '007 Web Sync'
           git config user.email 'actions@users.noreply.github.com'
           git add web-007/index.html build-status/007-web-modules-v1.3.2.txt
-          git commit -m 'Sync clean Hurghada housing v1.3.2 source [skip ci]' || exit 0
+          git commit -m 'Rebuild clean 007 web source v1.3.2 [skip ci]' || exit 0
           for i in 1 2 3; do
             git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
             sleep 3
           done
-          echo 'ERROR: could not push synchronized web source after retries'
+          echo 'ERROR: could not push clean web source after retries'
           exit 1
