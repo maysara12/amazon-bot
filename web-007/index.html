@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV135">
+<script id="fullPortalComposerV136">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
@@ -24,14 +24,15 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     return r.text();
   };
   try{
-    const [base,v110,core,housing,housingFix,authPatch,realtimePatch]=await Promise.all([
+    const [base,v110,core,housing,housingFix,authPatch,realtimePatch,appUiPatch]=await Promise.all([
       get(BASE),
       get(CURRENT+'v110_patch.html'),
       get(CURRENT+'modules_v120_patch.html'),
       get(CURRENT+'hurghada_housing_v132_patch.html'),
       get(CURRENT+'housing_v135_fix_patch.html'),
       get(CURRENT+'auth_v111_patch.html'),
-      get(CURRENT+'realtime_v134_patch.html')
+      get(CURRENT+'realtime_v134_patch.html'),
+      get(CURRENT+'app_ui_v136_patch.html')
     ]);
 
     if(!base.includes('</body>')||!base.includes('SUPABASE_URL'))throw new Error('قاعدة البورتال غير صالحة');
@@ -42,10 +43,11 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     if(!housingFix.includes('housingV135FixScript')||!housingFix.includes('housing_create_checkout_request'))throw new Error('تحديث السكن v1.3.5 غير مكتمل');
     if(!authPatch.includes('loginErrorV112Script'))throw new Error('تسجيل الدخول غير مكتمل');
     if(!realtimePatch.includes('realtimeV134Script')||!realtimePatch.includes('postgres_changes'))throw new Error('Realtime غير مكتمل');
+    if(!appUiPatch.includes('appUiV136Script')||!appUiPatch.includes('html.app-android .fab'))throw new Error('تحديث واجهة التطبيق v1.3.6 غير مكتمل');
 
-    const patches=[v110,core,housing,housingFix,authPatch,realtimePatch].join('\n');
+    const patches=[v110,core,housing,housingFix,authPatch,realtimePatch,appUiPatch].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
-    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','housingV135FixScript','loginErrorV112Script','realtimeV134Script'];
+    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','housingV135FixScript','loginErrorV112Script','realtimeV134Script','appUiV136Script'];
     for(const marker of required){if(!final.includes(marker))throw new Error('جزء مفقود: '+marker)}
 
     document.open();document.write(final);document.close();
