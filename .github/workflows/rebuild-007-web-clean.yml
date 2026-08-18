@@ -1,0 +1,88 @@
+name: Rebuild 007 Web Clean
+
+on:
+  push:
+    branches:
+      - 007-operations-android
+    paths:
+      - '.github/workflows/rebuild-007-web-clean.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-007-web-clean
+  cancel-in-progress: true
+
+jobs:
+  rebuild-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: 007-operations-android
+          fetch-depth: 0
+
+      - name: Decode base and Housing v1.3.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat android-007/portal/portal.b64.part1 \
+              android-007/portal/portal.b64.part2 \
+              android-007/portal/portal.b64.part3 \
+              android-007/portal/portal.b64.part4 \
+            | base64 --decode | gzip --decompress > /tmp/base.html
+          base64 --decode android-007/portal/hurghada_housing_v132_patch.html.gz.b64 \
+            | gzip --decompress > /tmp/hh132.html
+
+      - name: Build one clean web source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('/tmp/base.html').read_text(encoding='utf-8')
+          if '</body>' not in html:
+              raise SystemExit('ERROR: base portal missing </body>')
+          patches=[
+              Path('android-007/portal/v110_patch.html').read_text(encoding='utf-8'),
+              Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
+              Path('/tmp/hh132.html').read_text(encoding='utf-8'),
+          ]
+          html=html.replace('</body>','\n'.join(patches)+'\n</body>',1)
+          Path('web-007/index.html').write_text(html,encoding='utf-8')
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',html,flags=re.S)
+          Path('/tmp/final.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/final.js
+          grep -q 'data-core="orders-only"' web-007/index.html
+          grep -q 'hh132Script' web-007/index.html
+          grep -q 'إثبات الساعات' web-007/index.html
+          grep -q 'خرجوا من السكن' web-007/index.html
+          if grep -q 'hurghadaHousingV130Script' web-007/index.html; then exit 1; fi
+          if grep -q 'hh131Script' web-007/index.html; then exit 1; fi
+          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية' web-007/index.html; then exit 1; fi
+
+      - name: Write success marker
+        shell: bash
+        run: |
+          mkdir -p build-status
+          {
+            echo '007 Operations Web clean v1.3.2'
+            echo 'status=SUCCESS'
+            echo "source_commit=${GITHUB_SHA}"
+            echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > build-status/007-web-clean-v1.3.2.txt
+
+      - name: Commit clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name '007 Web Cleaner'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web-007/index.html build-status/007-web-clean-v1.3.2.txt
+          git commit -m 'Rebuild 007 web from clean sources [skip ci]' || exit 0
+          git push origin HEAD:007-operations-android
