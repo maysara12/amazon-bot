@@ -1,27 +1,26 @@
 <style id="housingStaysCleanupV142Style">
 .hh142-billing-cutover{color:#f2d17b;font-weight:700}
 </style>
-<script id="housingStaysCleanupV142Script">
+<script id="housingStaysCleanupV142Script" data-version="1.4.3">
 (function(){
 'use strict';
 let busy=false;
 function byId(x){return document.getElementById(x)}
-function arDate(v){if(!v)return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString('en-GB')}catch(_){return v}}
+function arDate(v){if(!v)return '—';try{return new Date(v+'T00:00:00').toLocaleDateString('en-GB')}catch(_){return v}}
 function findTable(){
-  const root=byId('hh132Body'); if(!root) return null;
+  const root=byId('hh132Body');if(!root)return null;
   return [...root.querySelectorAll('.hh132-table')].find(t=>{
     const txt=t.textContent||'';
-    return txt.includes('تاريخ الدخول') && txt.includes('Rider ID') && txt.includes('الطيار');
-  }) || null;
+    return txt.includes('تاريخ الدخول')&&txt.includes('Rider ID')&&txt.includes('الطيار');
+  })||null;
 }
 function billingIndexes(table){
-  const hr=table?.tHead?.rows?.[0]; if(!hr) return [];
+  const hr=table?.tHead?.rows?.[0];if(!hr)return[];
   return [...hr.cells].map((c,i)=>({i,txt:(c.textContent||'').trim()})).filter(x=>x.txt==='المحاسبة من').map(x=>x.i);
 }
 function clearBillingColumns(table){
-  const hr=table?.tHead?.rows?.[0]; if(!hr) return -1;
-  const indexes=billingIndexes(table).sort((a,b)=>b-a);
-  indexes.forEach(idx=>{
+  const hr=table?.tHead?.rows?.[0];if(!hr)return-1;
+  billingIndexes(table).sort((a,b)=>b-a).forEach(idx=>{
     hr.deleteCell(idx);
     [...(table.tBodies?.[0]?.rows||[])].forEach(tr=>{if(tr.cells[idx])tr.deleteCell(idx)});
   });
@@ -47,10 +46,17 @@ async function fix(){
       tr.insertBefore(td,tr.cells[inIdx+1]||null);
     });
     table.dataset.hh142Fixed='1';
-  }catch(e){console.warn('housing stays cleanup v142',e)}finally{busy=false}
+  }catch(e){console.warn('housing stays cleanup v143',e)}finally{busy=false}
 }
-const obs=new MutationObserver(()=>setTimeout(fix,60));
-function boot(){const root=byId('hh132Body');if(root){obs.observe(root,{childList:true,subtree:true});fix()}else setTimeout(boot,250)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+function schedule(){setTimeout(fix,120)}
+const previousRefresh=window.refreshAll;
+if(typeof previousRefresh==='function'){
+  window.refreshAll=async function(){const r=await previousRefresh.apply(this,arguments);schedule();return r};
+}
+document.addEventListener('click',e=>{
+  const t=e.target instanceof Element?e.target.closest('[data-hht="stays"]'):null;
+  if(t)schedule();
+},true);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 })();
 </script>
