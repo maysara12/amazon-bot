@@ -1,0 +1,30 @@
+<style id="brandLogoV138Style">
+.side-brand .mark.brand-logo-007,.auth-brand .mark.brand-logo-007{background-color:#0c1a2d;background-repeat:no-repeat;background-position:center;background-size:cover;color:transparent;overflow:hidden}
+.side-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 4px 18px #0005}
+.auth-brand .mark.brand-logo-007{border-color:#d8b25c80;box-shadow:0 8px 30px #0006}
+</style>
+<script id="brandLogoV138Script">
+(function(){
+  'use strict';
+  const ROOT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/icon/';
+  const parts=['ic_launcher.webp.b64.part1','ic_launcher.webp.b64.part2','ic_launcher.webp.b64.part3','ic_launcher.webp.b64.part4'];
+  async function loadLogo(){
+    try{
+      const chunks=await Promise.all(parts.map(async n=>{const r=await fetch(ROOT+n,{cache:'force-cache'});if(!r.ok)throw new Error('logo '+r.status);return r.text()}));
+      const b64=chunks.join('').replace(/\s+/g,'');
+      if(b64.length<50000)throw new Error('logo data incomplete');
+      const src='data:image/webp;base64,'+b64;
+      document.querySelectorAll('.side-brand .mark,.auth-brand .mark').forEach(el=>{
+        el.classList.add('brand-logo-007');
+        el.textContent='';
+        el.style.backgroundImage=`url("${src}")`;
+        el.setAttribute('aria-label','007');
+      });
+      let fav=document.querySelector('link[rel="icon"]');
+      if(!fav){fav=document.createElement('link');fav.rel='icon';document.head.appendChild(fav)}
+      fav.type='image/webp';fav.href=src;
+    }catch(e){console.warn('007 brand logo unavailable',e)}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadLogo,{once:true});else loadLogo();
+})();
+</script>
