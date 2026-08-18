@@ -117,3 +117,54 @@
   window.addEventListener('DOMContentLoaded',()=>setTimeout(initRecoveryV111,0));
 })();
 </script>
+<script id="loginErrorV112Script">
+(function(){
+  function validEmail007(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim())}
+  function loginMessage007(code,status,message){
+    const c=String(code||'').toLowerCase();
+    const m=String(message||'').toLowerCase();
+    if(c==='email_not_confirmed'||m.includes('email not confirmed'))return 'البريد الإلكتروني لم يتم تأكيده بعد. افتح رسالة التأكيد أولًا.';
+    if(c==='user_banned'||m.includes('banned'))return 'الحساب موقوف حاليًا. تواصل مع إدارة 007.';
+    if(status===429||c.includes('rate')||m.includes('too many')||m.includes('rate limit'))return 'محاولات تسجيل دخول كثيرة. انتظر قليلًا ثم جرّب مرة أخرى.';
+    if(c==='weak_password'||m.includes('weak password'))return 'كلمة المرور الحالية لم تعد مستوفية لمتطلبات الأمان. استخدم «نسيت كلمة المرور؟» لتعيين كلمة جديدة.';
+    if(c==='captcha_failed'||m.includes('captcha'))return 'تعذر التحقق الأمني. حدّث الصفحة وحاول مرة أخرى.';
+    if(c==='invalid_credentials'||m.includes('invalid login credentials')||m.includes('invalid credentials'))return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+    return 'تعذر تسجيل الدخول. راجع البيانات وحاول مرة أخرى.';
+  }
+  async function login007V112(){
+    const btn=document.getElementById('loginBtn');
+    const email=(document.getElementById('loginEmail')?.value||'').trim();
+    const password=document.getElementById('loginPassword')?.value||'';
+    if(!email)return toast('اكتب البريد الإلكتروني',true);
+    if(!validEmail007(email))return toast('صيغة البريد الإلكتروني غير صحيحة',true);
+    if(!password)return toast('اكتب كلمة المرور',true);
+    busy(btn,true,'جاري التحقق...');
+    try{
+      const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+        method:'POST',
+        headers:{apikey:API_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({email,password})
+      });
+      let d={};try{d=await r.json()}catch(_){ }
+      if(!r.ok){
+        const code=d.code||d.error_code||d.error||'';
+        const message=d.message||d.error_description||d.msg||'';
+        return toast(loginMessage007(code,r.status,message),true);
+      }
+      saveSession(d);
+      await boot();
+    }catch(_){
+      toast('تعذر الاتصال بخدمة تسجيل الدخول. تأكد من الإنترنت وحاول مرة أخرى.',true);
+    }finally{busy(btn,false)}
+  }
+  function installLogin007(){
+    const btn=document.getElementById('loginBtn');
+    const pass=document.getElementById('loginPassword');
+    if(btn)btn.onclick=login007V112;
+    if(pass)pass.onkeydown=e=>{if(e.key==='Enter')login007V112()};
+  }
+  window.login007V112=login007V112;
+  if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',()=>setTimeout(installLogin007,0));
+  else setTimeout(installLogin007,0);
+})();
+</script>
