@@ -1,0 +1,2 @@
+007 Operations Android v1.1.0
+Mobile UX + camera evidence + offline retry + case timeline + company response summary
