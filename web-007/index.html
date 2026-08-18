@@ -13,46 +13,21 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV141">
+<script id="fullPortalComposerV142">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
   const stamp=Date.now();
-  const get=async url=>{
-    const r=await fetch(url+(url.includes('?')?'&':'?')+'v='+stamp,{cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status+' — '+url.split('/').pop());
-    return r.text();
-  };
+  const get=async url=>{const r=await fetch(url+(url.includes('?')?'&':'?')+'v='+stamp,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status+' — '+url.split('/').pop());return r.text()};
   try{
-    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout]=await Promise.all([
-      get(BASE),
-      get(CURRENT+'v110_patch.html'),
-      get(CURRENT+'modules_v120_patch.html'),
-      get(CURRENT+'hurghada_housing_v132_patch.html'),
-      get(CURRENT+'housing_checkout_workflow_v139_patch.html'),
-      get(CURRENT+'housing_v135_fix_patch.html'),
-      get(CURRENT+'auth_v111_patch.html'),
-      get(CURRENT+'realtime_v134_patch.html'),
-      get(CURRENT+'app_ui_v136_patch.html'),
-      get(CURRENT+'housing_requests_filter_v137_patch.html'),
-      get(CURRENT+'brand_logo_v138_patch.html'),
-      get(CURRENT+'housing_evidence_cleanup_v140_patch.html'),
-      get(CURRENT+'housing_checkin_layout_v141_patch.html')
+    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,staysCleanup]=await Promise.all([
+      get(BASE),get(CURRENT+'v110_patch.html'),get(CURRENT+'modules_v120_patch.html'),get(CURRENT+'hurghada_housing_v132_patch.html'),get(CURRENT+'housing_checkout_workflow_v139_patch.html'),get(CURRENT+'housing_v135_fix_patch.html'),get(CURRENT+'auth_v111_patch.html'),get(CURRENT+'realtime_v134_patch.html'),get(CURRENT+'app_ui_v136_patch.html'),get(CURRENT+'housing_requests_filter_v137_patch.html'),get(CURRENT+'brand_logo_v138_patch.html'),get(CURRENT+'housing_evidence_cleanup_v140_patch.html'),get(CURRENT+'housing_checkin_layout_v141_patch.html'),get(CURRENT+'housing_stays_cleanup_v142_patch.html')
     ]);
-
-    if(!base.includes('</body>')||!base.includes('SUPABASE_URL'))throw new Error('قاعدة البورتال غير صالحة');
-    if(!checkoutWorkflow.includes('housingCheckoutV139Script'))throw new Error('مسار اعتماد الخروج غير مكتمل');
-    if(!evidenceCleanup.includes('housingEvidenceV140Script')||!evidenceCleanup.includes('استكمال الساعات القديمة'))throw new Error('تنظيف إثبات الساعات v1.4.0 غير مكتمل');
-    if(!checkinLayout.includes('housingCheckinLayoutV141Script')||!checkinLayout.includes('بداية المحاسبة داخل النظام'))throw new Error('تنسيق طلب الدخول v1.4.1 غير مكتمل');
-
-    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout].join('\n');
+    if(!staysCleanup.includes('housingStaysCleanupV142Script'))throw new Error('إصلاح جدول الساكنين v1.4.2 غير مكتمل');
+    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup,checkinLayout,staysCleanup].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
     document.open();document.write(final);document.close();
-  }catch(e){
-    console.error('007 full portal composer',e);
-    const m=document.getElementById('msg');
-    if(m){m.className='msg err';m.textContent='تعذر تشغيل البورتال الكامل: '+(e.message||e)}
-  }
+  }catch(e){console.error('007 full portal composer',e);const m=document.getElementById('msg');if(m){m.className='msg err';m.textContent='تعذر تشغيل البورتال الكامل: '+(e.message||e)}}
 })();
 </script>
 </body>
