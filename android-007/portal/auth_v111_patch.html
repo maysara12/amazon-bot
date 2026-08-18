@@ -1,0 +1,102 @@
+<style id="authV111Styles">
+.auth-recovery-note{margin:12px 0 16px;padding:12px 14px;border-radius:13px;background:#102238;border:1px solid #2a3f5b;color:#c7d3e0;line-height:1.8;font-size:13px}.auth-recovery-note.bad{background:#351820;border-color:#71313d;color:#ffc5cc}.auth-recovery-note.ok{background:#123328;border-color:#285a45;color:#a6e8c2}.auth-recovery-note b{color:#f1cf79}.auth-recovery-security{margin-top:14px;color:#7f93aa;font-size:11px;line-height:1.8}.auth-recovery-security strong{color:#b9c7d6}.auth-recovery-success{display:grid;gap:12px;text-align:center}.auth-recovery-success .checkmark{width:64px;height:64px;border-radius:18px;margin:auto;display:grid;place-items:center;background:#173c2d;color:#91e2b4;font-size:30px;border:1px solid #2d6b50}
+</style>
+<script id="authV111Script">
+(function(){
+  const RESET_REDIRECT='https://007-operations-portal.vercel.app';
+  function parseAuthError(){
+    const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+    const query=new URLSearchParams(location.search);
+    return {
+      error:hash.get('error')||query.get('error')||'',
+      code:hash.get('error_code')||query.get('error_code')||'',
+      desc:(hash.get('error_description')||query.get('error_description')||'').replace(/\+/g,' ')
+    };
+  }
+  function cleanAuthErrorUrl(){
+    if(location.hash.includes('error=')||location.search.includes('error=')){
+      history.replaceState({},'',location.pathname);
+    }
+  }
+  function addConfirmField(){
+    const box=document.getElementById('recoverBox');
+    const first=document.getElementById('recoverPassword');
+    if(!box||!first||document.getElementById('recoverPassword2'))return;
+    const field=document.createElement('div');
+    field.className='field';
+    field.innerHTML='<label>تأكيد كلمة المرور الجديدة</label><input id="recoverPassword2" class="input" type="password" minlength="8" autocomplete="new-password">';
+    first.closest('.field').insertAdjacentElement('afterend',field);
+    const note=document.createElement('div');
+    note.className='auth-recovery-note';
+    note.innerHTML='<b>اختار كلمة مرور جديدة</b><br>8 أحرف على الأقل. بعد الحفظ هترجع لشاشة تسجيل الدخول.';
+    box.querySelector('h2')?.insertAdjacentElement('afterend',note);
+  }
+  async function sendResetV111(){
+    const email=document.getElementById('forgotEmail')?.value.trim();
+    const btn=document.getElementById('forgotBtn');
+    if(!email)return toast('اكتب البريد الإلكتروني',true);
+    busy(btn,true,'جاري إرسال الرابط...');
+    try{
+      await auth('recover?redirect_to='+encodeURIComponent(RESET_REDIRECT),{method:'POST',body:JSON.stringify({email}),token:null});
+      const box=document.getElementById('forgotBox');
+      let note=document.getElementById('resetSentV111');
+      if(!note){note=document.createElement('div');note.id='resetSentV111';note.className='auth-recovery-note ok';box.insertBefore(note,btn)}
+      note.innerHTML='<b>تم إرسال رابط جديد ✅</b><br>افتح أحدث رسالة وصلتك فقط. الرابط يُستخدم مرة واحدة، ولو طلبت رابط جديد تجاهل أي رسالة أقدم.';
+      toast('تم إرسال رابط استعادة جديد ✅');
+    }catch(e){toast(e.message||'تعذر إرسال رابط الاستعادة',true)}finally{busy(btn,false)}
+  }
+  async function savePasswordV111(){
+    const p1=document.getElementById('recoverPassword')?.value||'';
+    const p2=document.getElementById('recoverPassword2')?.value||'';
+    const btn=document.getElementById('recoverBtn');
+    if(p1.length<8)return toast('كلمة المرور لازم تكون 8 أحرف على الأقل',true);
+    if(p1!==p2)return toast('كلمتا المرور غير متطابقتين',true);
+    busy(btn,true,'جاري حفظ كلمة المرور...');
+    try{
+      await auth('user',{method:'PUT',body:JSON.stringify({password:p1})});
+      try{await auth('logout',{method:'POST',body:'{}'})}catch(_){ }
+      saveSession(null);
+      history.replaceState({},'',location.pathname);
+      const box=document.getElementById('recoverBox');
+      box.innerHTML='<div class="auth-recovery-success"><div class="checkmark">✓</div><h2>تم تغيير كلمة المرور</h2><p class="muted">تقدر دلوقتي تسجل دخولك بكلمة المرور الجديدة.</p><button id="recoveryDoneLogin" class="btn btn-primary wide" type="button">الذهاب لتسجيل الدخول</button></div>';
+      document.getElementById('recoveryDoneLogin').onclick=()=>{location.reload()};
+      toast('تم تغيير كلمة المرور بنجاح ✅');
+    }catch(e){
+      const msg=String(e?.message||e||'');
+      if(/expired|invalid|otp/i.test(msg)){
+        showExpiredV111('رابط الاستعادة انتهت صلاحيته أو تم استخدامه من قبل.');
+      }else toast(msg||'تعذر تغيير كلمة المرور',true);
+    }finally{busy(btn,false)}
+  }
+  function showExpiredV111(message){
+    saveSession(null);
+    document.getElementById('portalView')?.classList.add('hidden');
+    document.getElementById('authView')?.classList.remove('hidden');
+    showAuth('forgot');
+    const box=document.getElementById('forgotBox');
+    let note=document.getElementById('expiredResetV111');
+    if(!note){note=document.createElement('div');note.id='expiredResetV111';note.className='auth-recovery-note bad';box.querySelector('p')?.insertAdjacentElement('afterend',note)}
+    note.innerHTML='<b>الرابط غير صالح أو انتهت صلاحيته</b><br>'+String(message||'اطلب رابط جديد من هنا.')+'<div class="auth-recovery-security"><strong>مهم:</strong> استخدم أحدث رسالة Reset فقط؛ أي رابط أقدم قد يصبح غير صالح بعد طلب رابط جديد.</div>';
+    const btn=document.getElementById('forgotBtn'); if(btn)btn.textContent='إرسال رابط استعادة جديد';
+    cleanAuthErrorUrl();
+  }
+  function initRecoveryV111(){
+    addConfirmField();
+    const forgotBtn=document.getElementById('forgotBtn');if(forgotBtn)forgotBtn.onclick=sendResetV111;
+    const recoverBtn=document.getElementById('recoverBtn');if(recoverBtn)recoverBtn.onclick=savePasswordV111;
+    const err=parseAuthError();
+    if(err.error||err.code){
+      const human=err.code==='otp_expired'?'رابط الاستعادة انتهت صلاحيته.':(err.desc||'تعذر استخدام رابط الاستعادة.');
+      showExpiredV111(human);
+      return;
+    }
+    const recoverBox=document.getElementById('recoverBox');
+    if(recoverBox&&!recoverBox.classList.contains('hidden')){
+      document.getElementById('authView')?.classList.remove('hidden');
+      document.getElementById('portalView')?.classList.add('hidden');
+      addConfirmField();
+    }
+  }
+  window.addEventListener('DOMContentLoaded',()=>setTimeout(initRecoveryV111,0));
+})();
+</script>
