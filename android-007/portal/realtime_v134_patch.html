@@ -10,7 +10,7 @@
   let refreshInFlight=false,suppressUntil=0,lastAutoRefresh=0;
   const state=()=>document.getElementById('realtime007State');
   function setState(kind,text){const el=state();if(!el)return;el.className=kind||'';const s=el.querySelector('span');if(s)s.textContent=text}
-  function loggedIn(){return !!(window.session?.access_token&&window.me)}
+  function loggedIn(){return !!(session?.access_token&&me)}
   function safeRefresh(reason,delay=250){
     if(!loggedIn()||Date.now()<suppressUntil)return;
     clearTimeout(refreshTimer);
@@ -36,13 +36,13 @@
   }
   async function connect(){
     if(!loggedIn())return false;
-    const token=window.session.access_token;
+    const token=session.access_token;
     if(rtChannel&&activeToken===token)return true;
     await disconnect();
     if(!window.supabase?.createClient){setState('offline','Realtime غير متاح — تحديث تلقائي كل 5 ثوانٍ');startFallback();return false}
     try{
       rtClient=window.supabase.createClient(SUPABASE_URL,API_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
-      rtClient.realtime.setAuth(token);
+      await rtClient.realtime.setAuth(token);
       activeToken=token;
       rtChannel=rtClient.channel('007-operations-live-v134')
         .on('postgres_changes',{event:'*',schema:'public'},payload=>{
@@ -82,9 +82,9 @@
   window.addEventListener('offline',()=>{setState('offline','لا يوجد إنترنت');startFallback()});
   healthTimer=setInterval(async()=>{
     if(!loggedIn())return;
-    const token=window.session.access_token;
+    const token=session.access_token;
     if(!rtChannel)await connect();
-    else if(token!==activeToken){try{rtClient.realtime.setAuth(token);activeToken=token}catch(_){await connect()}}
+    else if(token!==activeToken){try{await rtClient.realtime.setAuth(token);activeToken=token}catch(_){await connect()}}
     if(document.visibilityState==='visible'&&Date.now()-lastAutoRefresh>30000)safeRefresh('health',0);
   },2000);
   const bootWait=setInterval(()=>{
