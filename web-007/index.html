@@ -12,9 +12,8 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 </head>
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
-<!-- Prevent the outer Vercel auth patch from launching Housing before the full portal is composed. -->
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV133">
+<script id="fullPortalComposerV134">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
@@ -32,12 +31,13 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     return new Response(stream).text();
   };
   try{
-    const [base,v110,core,housingB64,authPatch]=await Promise.all([
+    const [base,v110,core,housingB64,authPatch,realtimePatch]=await Promise.all([
       get(BASE),
       get(CURRENT+'v110_patch.html'),
       get(CURRENT+'modules_v120_patch.html'),
       get(CURRENT+'hurghada_housing_v132_patch.html.gz.b64'),
-      get(CURRENT+'auth_v111_patch.html')
+      get(CURRENT+'auth_v111_patch.html'),
+      get(CURRENT+'realtime_v134_patch.html')
     ]);
     const housing=await gunzipB64(housingB64);
 
@@ -47,11 +47,12 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     if(!housing.includes('hh132Script')||!housing.includes('إثبات الساعات')||!housing.includes('خرجوا من السكن'))throw new Error('موديول السكن غير مكتمل');
     if(/hurghadaHousingV130Script|hh131Script/.test(housing))throw new Error('نسخة سكن قديمة موجودة');
     if(!authPatch.includes('loginErrorV112Script'))throw new Error('تسجيل الدخول غير مكتمل');
+    if(!realtimePatch.includes('realtimeV134Script')||!realtimePatch.includes('postgres_changes'))throw new Error('Realtime غير مكتمل');
 
-    const patches=[v110,core,housing,authPatch].join('\n');
+    const patches=[v110,core,housing,authPatch,realtimePatch].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
 
-    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','loginErrorV112Script'];
+    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','loginErrorV112Script','realtimeV134Script'];
     for(const marker of required){if(!final.includes(marker))throw new Error('جزء مفقود: '+marker)}
 
     document.open();
