@@ -1,0 +1,71 @@
+<style id="v110Styles">
+.v110-detail{border:1px solid #354a66;background:#13243a;color:#f5d47e;border-radius:10px;padding:7px 11px;font-weight:700;font-size:12px}
+.v110-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:14px 0 20px}.v110-stat{background:linear-gradient(145deg,#102238,#091726);border:1px solid #22344d;border-radius:15px;padding:14px}.v110-stat small{color:#92a1b7;display:block}.v110-stat b{display:block;font-size:23px;margin-top:7px}.v110-updates{display:grid;gap:9px}.v110-update{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;background:#091626;border:1px solid #1d3049;border-radius:13px;padding:11px 13px}.v110-update small{color:#91a4b9;display:block;margin-top:4px;line-height:1.6}.v110-update strong{white-space:nowrap;color:#efc968}
+.v110-modal{position:fixed;inset:0;z-index:95;background:#000b;display:none;place-items:center;padding:16px}.v110-modal.open{display:grid}.v110-sheet{width:min(720px,100%);max-height:92vh;overflow:auto;background:#0c1b2e;border:1px solid #2a3c55;border-radius:22px;padding:20px;box-shadow:0 24px 80px #000b}.v110-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:14px}.v110-head h3{margin:0}.v110-close{width:40px;height:40px;border-radius:12px;background:#12243a;border:1px solid #263b57;color:#fff;font-size:22px}.v110-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.v110-box{background:#091626;border:1px solid #1f324b;border-radius:12px;padding:11px}.v110-box small{display:block;color:#8294aa;margin-bottom:5px}.v110-box b{line-height:1.6}.v110-timeline{display:grid;gap:0;margin:18px 0}.v110-step{position:relative;padding:0 32px 18px 0;min-height:54px}.v110-step:before{content:'';position:absolute;right:8px;top:9px;width:2px;height:100%;background:#26384f}.v110-step:last-child:before{display:none}.v110-dot{position:absolute;right:0;top:2px;width:18px;height:18px;border-radius:50%;background:#17283e;border:2px solid #40516a}.v110-step.done .v110-dot{background:#d8b25c;border-color:#f2d47c}.v110-step.done:before{background:#8b743d}.v110-step.current .v110-dot{box-shadow:0 0 0 5px #d8b25c22}.v110-step span{font-weight:700}.v110-step small{display:block;color:#8294aa;margin-top:4px}.v110-company{border-right:3px solid #d8b25c;background:#101e31;border-radius:12px;padding:13px;margin-top:12px}.v110-company.rejected{border-right-color:#ef6363}.v110-company .raw{color:#9dafc2;line-height:1.8;margin-top:6px}.v110-net{position:fixed;z-index:110;top:12px;left:50%;transform:translateX(-50%);display:none;padding:8px 14px;border-radius:999px;background:#612833;color:#ffd6da;border:1px solid #9a4451;font-size:12px}.v110-net.show{display:block}
+@media(max-width:820px){.v110-summary{grid-template-columns:1fr 1fr}.v110-grid{grid-template-columns:1fr}.v110-sheet{border-radius:22px 22px 0 0;position:absolute;bottom:0;max-height:90vh;width:100%}.v110-modal{align-items:end;padding:0}.v110-detail{padding:8px 12px}.v110-update{display:block}.v110-update strong{display:block;margin-bottom:4px}}
+</style>
+<div id="v110Net" class="v110-net">لا يوجد اتصال بالإنترنت — بعض البيانات قد لا تتحدث الآن</div>
+<div id="v110CaseModal" class="v110-modal" aria-hidden="true"><div class="v110-sheet"><div class="v110-head"><div><h3>تفاصيل الحالة</h3><small id="v110CaseSub" style="color:#8294aa"></small></div><button id="v110Close" class="v110-close" type="button">×</button></div><div id="v110CaseBody"></div></div></div>
+<script>
+(function(){
+  const companyResultLabel={APPROVED:'مقبول من الشركة',REJECTED:'مرفوض من الشركة',ALREADY_REFUNDED:'تم الاسترداد بالفعل'};
+  function esc110(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function statusDone(c,stage){
+    const s=c.status||'';
+    if(stage===0)return true;
+    if(stage===1)return !['DRAFT'].includes(s);
+    if(stage===2)return ['READY_TO_SUBMIT','SUBMITTED','COMPANY_APPROVED','COMPANY_REJECTED','REFUND_PENDING','REFUNDED','CLOSED'].includes(s);
+    if(stage===3)return ['SUBMITTED','COMPANY_APPROVED','COMPANY_REJECTED','REFUND_PENDING','REFUNDED','CLOSED'].includes(s);
+    if(stage===4)return !!c.company_result||['COMPANY_APPROVED','COMPANY_REJECTED','REFUND_PENDING','REFUNDED','CLOSED'].includes(s);
+    if(stage===5)return s==='REFUNDED'||c.refund_status==='REFUNDED';
+    return false;
+  }
+  function timeline(c){
+    const steps=[
+      ['تم رفع الحالة','المشرف أرسل البيانات والإثباتات'],
+      ['مراجعة الإدارة','فحص الحالة طبقًا لدليل 007'],
+      ['جاهز للرفع','تم اعتماد الحالة داخليًا'],
+      ['تم الرفع للشركة','الحالة بانتظار مراجعة الشركة'],
+      ['رد الشركة',c.company_result?(companyResultLabel[c.company_result]||c.company_result):'لم يصل رد الشركة بعد'],
+      ['الاسترداد',c.refund_status==='REFUNDED'||c.status==='REFUNDED'?'تم رد المبلغ':'بانتظار دورة الاسترداد']
+    ];
+    let lastDone=-1;steps.forEach((_,i)=>{if(statusDone(c,i))lastDone=i});
+    return `<div class="v110-timeline">${steps.map((x,i)=>`<div class="v110-step ${statusDone(c,i)?'done':''} ${i===lastDone?'current':''}"><i class="v110-dot"></i><span>${esc110(x[0])}</span><small>${esc110(x[1])}</small></div>`).join('')}</div>`;
+  }
+  window.openCaseDetailsV110=function(id){
+    const c=cases.find(x=>x.id===id);if(!c)return;
+    document.getElementById('v110CaseSub').textContent=(c.case_code||'')+' · '+(c.order_id||'');
+    const rejected=(c.company_result==='REJECTED'||c.status==='COMPANY_REJECTED');
+    const companyBlock=(c.company_result||c.company_comment||['SUBMITTED','COMPANY_APPROVED','COMPANY_REJECTED','REFUND_PENDING','REFUNDED'].includes(c.status))?`<div class="v110-company ${rejected?'rejected':''}"><b>${esc110(companyResultLabel[c.company_result]||c.company_result||'بانتظار رد الشركة')}</b><div class="raw">${esc110(c.company_comment||'لم يتم تسجيل تعليق من الشركة حتى الآن.')}</div><small style="color:#8294aa">حالة الاسترداد: ${esc110(c.refund_status||'—')}</small></div>`:'';
+    document.getElementById('v110CaseBody').innerHTML=`<div class="v110-grid"><div class="v110-box"><small>رقم الأوردر</small><b>${esc110(c.order_id)}</b></div><div class="v110-box"><small>ID المندوب</small><b>${esc110(c.rider_id)}</b></div><div class="v110-box"><small>الزون</small><b>${esc110(c.zones?.name_ar||'—')}</b></div><div class="v110-box"><small>المبلغ</small><b>${Number(c.amount||0).toFixed(2)} ج</b></div><div class="v110-box"><small>نوع الواقعة</small><b>${esc110(ISSUE_LABELS[c.issue_type]||c.issue_type||'—')}</b></div><div class="v110-box"><small>الحالة الحالية</small><b>${esc110(STATUS_LABELS[c.status]||c.status||'—')}</b></div></div>${timeline(c)}${companyBlock}<div class="v110-company"><b>شرح الواقعة</b><div class="raw">${esc110(c.problem_summary||'—')}</div></div>`;
+    document.getElementById('v110CaseModal').classList.add('open');
+    document.getElementById('v110CaseModal').setAttribute('aria-hidden','false');
+  };
+  function close110(){document.getElementById('v110CaseModal').classList.remove('open');document.getElementById('v110CaseModal').setAttribute('aria-hidden','true')}
+  document.getElementById('v110Close').addEventListener('click',close110);
+  document.getElementById('v110CaseModal').addEventListener('click',e=>{if(e.target.id==='v110CaseModal')close110()});
+
+  caseMarkup=function(arr){
+    if(!arr.length)return '<div class="empty">لا توجد حالات حتى الآن</div>';
+    const rows=arr.map(c=>`<tr><td>${esc110(c.case_code)}</td><td>${esc110(c.order_id)}</td><td>${esc110(c.rider_id)}</td><td>${esc110(c.zones?.name_ar||'—')}</td><td>${esc110(ISSUE_LABELS[c.issue_type]||c.issue_type)}</td><td>${Number(c.amount||0).toFixed(2)} ج</td><td>${statusBadge(c.status)}</td><td><button class="v110-detail" type="button" onclick="openCaseDetailsV110('${c.id}')">تفاصيل</button></td></tr>`).join('');
+    const cards=arr.map(c=>`<div class="case-card"><div class="row"><b>${esc110(c.order_id)}</b>${statusBadge(c.status)}</div><div class="row"><span>${esc110(c.rider_id)}</span><span>${esc110(c.zones?.name_ar||'—')}</span></div><div class="row"><small>${esc110(ISSUE_LABELS[c.issue_type]||c.issue_type)}</small><b>${Number(c.amount||0).toFixed(2)} ج</b></div>${c.company_result?`<div class="row"><small>رد الشركة</small><span>${esc110(companyResultLabel[c.company_result]||c.company_result)}</span></div>`:''}<button class="v110-detail" style="width:100%;margin-top:8px" type="button" onclick="openCaseDetailsV110('${c.id}')">عرض مسار الحالة</button></div>`).join('');
+    return `<div class="table-wrap main-table"><table><thead><tr><th>Case ID</th><th>الأوردر</th><th>المندوب</th><th>الزون</th><th>الواقعة</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="case-cards">${cards}</div>`;
+  };
+
+  const baseDashboard=renderDashboard;
+  renderDashboard=function(){
+    baseDashboard();
+    let wrap=document.getElementById('v110DashboardExtras');
+    if(!wrap){wrap=document.createElement('div');wrap.id='v110DashboardExtras';document.getElementById('sec-dashboard').appendChild(wrap)}
+    const awaiting=cases.filter(c=>c.status==='SUBMITTED').length;
+    const accepted=cases.filter(c=>['COMPANY_APPROVED','REFUND_PENDING','REFUNDED'].includes(c.status)||['APPROVED','ALREADY_REFUNDED'].includes(c.company_result)).length;
+    const rejected=cases.filter(c=>c.status==='COMPANY_REJECTED'||c.company_result==='REJECTED').length;
+    const refundPending=cases.filter(c=>c.status==='REFUND_PENDING'||c.refund_status==='EXPECTED').length;
+    const updates=cases.filter(c=>c.company_result||c.company_comment).slice(0,6);
+    wrap.innerHTML=`<div class="v110-summary"><div class="v110-stat"><small>بانتظار رد الشركة</small><b>${awaiting}</b></div><div class="v110-stat"><small>مقبول من الشركة</small><b>${accepted}</b></div><div class="v110-stat"><small>مرفوض من الشركة</small><b>${rejected}</b></div><div class="v110-stat"><small>بانتظار الاسترداد</small><b>${refundPending}</b></div></div><div class="panel"><div class="panel-head"><h3>آخر ردود الشركة</h3></div><div class="v110-updates">${updates.length?updates.map(c=>`<div class="v110-update"><div><b>أوردر ${esc110(c.order_id)}</b><small>${esc110(c.company_comment||'تم تحديث الحالة من الشركة')}</small></div><strong>${esc110(companyResultLabel[c.company_result]||c.company_result||'تحديث')}</strong></div>`).join(''):'<div class="empty">لا توجد ردود شركة جديدة حتى الآن</div>'}</div></div>`;
+  };
+
+  function netState(){document.getElementById('v110Net').classList.toggle('show',!navigator.onLine)}
+  window.addEventListener('online',netState);window.addEventListener('offline',netState);netState();
+})();
+</script>
