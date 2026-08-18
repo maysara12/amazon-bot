@@ -1,0 +1,62 @@
+name: Restore Full 007 Portal Navigation
+
+on:
+  push:
+    branches:
+      - 007-operations-android
+    paths:
+      - '.github/workflows/restore-full-007-portal-nav.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-full-nav:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: 007-operations-android
+          fetch-depth: 0
+
+      - name: Repair embedded portal navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('web-007/index.html')
+          s = p.read_text(encoding='utf-8')
+          before = s
+          s = s.replace('if(!window.me)return;', 'if(!me)return;')
+          s = s.replace('if(!sec||!window.me)return;', 'if(!sec||!me)return;')
+          if s == before:
+              print('No replacement needed; checking current state')
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          grep -q "if(!me)return;" web-007/index.html
+          grep -q "if(!sec||!me)return;" web-007/index.html
+          if grep -q "window.me" web-007/index.html; then
+            echo 'ERROR: stale window.me binding still present in live portal'
+            exit 1
+          fi
+          grep -q "الأوردرات" web-007/index.html
+          grep -q "المستخدمون" web-007/index.html
+          grep -q "ردود الشركة" web-007/index.html
+          grep -q "الاسترداد" web-007/index.html
+          grep -q "hh132Script" web-007/index.html
+
+      - name: Commit repaired live portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name '007 Portal Recovery'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/restore-full-007-portal-nav.yml
+          git add web-007/index.html
+          git commit -m 'Restore full 007 portal navigation and keep housing [skip ci]'
+          git push origin HEAD:007-operations-android
