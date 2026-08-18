@@ -1,5 +1,6 @@
 name: Rebuild 007 Web Clean
 
+# trigger v1.3.2 clean rebuild
 on:
   push:
     branches:
