@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.provider.MediaStore;
 import android.view.View;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -14,22 +16,26 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Toast;
+import android.widget.Button;
 
+import androidx.core.content.FileProvider;
 import androidx.webkit.WebViewAssetLoader;
+
+import java.io.File;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private View splashView;
+    private View offlineView;
+    private Button retryButton;
     private ValueCallback<Uri[]> filePathCallback;
-    private static final int FILE_CHOOSER_CODE = 1001;
+    private Uri cameraPhotoUri;
 
-    // Keep the in-app portal on the exact same origin used by the public website.
-    // This makes signup / recovery redirect_to URLs valid for both web and Android.
+    private static final int FILE_CHOOSER_CODE = 1001;
     private static final String PUBLIC_PORTAL_DOMAIN = "007-operations-portal.vercel.app";
     private static final String PUBLIC_PORTAL_ORIGIN = "https://" + PUBLIC_PORTAL_DOMAIN;
-    private static final String LOCAL_PORTAL_URL =
-            PUBLIC_PORTAL_ORIGIN + "/assets/www/index.html";
+    private static final String SUPABASE_ORIGIN = "https://gektzjagrxqgcbhyeihm.supabase.co";
+    private static final String LOCAL_PORTAL_URL = PUBLIC_PORTAL_ORIGIN + "/assets/www/index.html";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +44,8 @@ public class MainActivity extends Activity {
 
         webView = findViewById(R.id.webView);
         splashView = findViewById(R.id.splashView);
+        offlineView = findViewById(R.id.offlineView);
+        retryButton = findViewById(R.id.retryButton);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -46,14 +54,24 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " 007OperationsAndroid/1.0.4");
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setUserAgentString(settings.getUserAgentString() + " 007OperationsAndroid/1.1.0");
 
         webView.setBackgroundColor(android.graphics.Color.rgb(7, 17, 31));
+        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
                 .setDomain(PUBLIC_PORTAL_DOMAIN)
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
+
+        retryButton.setOnClickListener(v -> {
+            offlineView.setVisibility(View.GONE);
+            splashView.setAlpha(1f);
+            splashView.setVisibility(View.VISIBLE);
+            webView.loadUrl(LOCAL_PORTAL_URL);
+        });
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -72,7 +90,8 @@ public class MainActivity extends Activity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
-                if (splashView.getVisibility() != View.VISIBLE) {
+                offlineView.setVisibility(View.GONE);
+                if (url.startsWith(PUBLIC_PORTAL_ORIGIN) && splashView.getVisibility() != View.VISIBLE) {
                     splashView.setAlpha(1f);
                     splashView.setVisibility(View.VISIBLE);
                 }
@@ -81,23 +100,21 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                splashView.animate()
-                        .alpha(0f)
-                        .setDuration(350)
-                        .withEndAction(() -> splashView.setVisibility(View.GONE))
-                        .start();
+                if (url.startsWith(PUBLIC_PORTAL_ORIGIN)) {
+                    offlineView.setVisibility(View.GONE);
+                    splashView.animate()
+                            .alpha(0f)
+                            .setDuration(280)
+                            .withEndAction(() -> splashView.setVisibility(View.GONE))
+                            .start();
+                }
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
-                    splashView.setVisibility(View.GONE);
-                    Toast.makeText(
-                            MainActivity.this,
-                            "تعذر تشغيل بوابة 007. حاول مرة أخرى.",
-                            Toast.LENGTH_LONG
-                    ).show();
+                    showOffline();
                 }
             }
 
@@ -105,17 +122,14 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
 
-                // Local bundled portal assets remain inside the app.
-                if (url.startsWith(PUBLIC_PORTAL_ORIGIN + "/assets/")) {
+                if (url.startsWith(PUBLIC_PORTAL_ORIGIN)) {
                     return false;
                 }
 
-                // Supabase Auth/API calls must remain inside the WebView flow.
-                if (url.startsWith("https://gektzjagrxqgcbhyeihm.supabase.co/")) {
+                if (url.startsWith(SUPABASE_ORIGIN + "/")) {
                     return false;
                 }
 
-                // All normal web links open in the user's browser.
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     try {
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
@@ -127,7 +141,8 @@ public class MainActivity extends Activity {
 
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
                 return true;
             }
         });
@@ -143,11 +158,12 @@ public class MainActivity extends Activity {
                     filePathCallback.onReceiveValue(null);
                 }
                 filePathCallback = callback;
+                cameraPhotoUri = null;
 
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("*/*");
-                intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                Intent fileIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                fileIntent.setType("*/*");
+                fileIntent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
                         "image/jpeg",
                         "image/png",
                         "image/webp",
@@ -155,8 +171,30 @@ public class MainActivity extends Activity {
                         "image/heif",
                         "application/pdf"
                 });
-                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
-                startActivityForResult(intent, FILE_CHOOSER_CODE);
+                fileIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                Parcelable[] initialIntents = new Parcelable[0];
+
+                if (cameraIntent.resolveActivity(getPackageManager()) != null) {
+                    try {
+                        File photoFile = File.createTempFile("007-evidence-", ".jpg", getCacheDir());
+                        cameraPhotoUri = FileProvider.getUriForFile(
+                                MainActivity.this,
+                                getPackageName() + ".fileprovider",
+                                photoFile
+                        );
+                        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+                        cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        initialIntents = new Parcelable[]{cameraIntent};
+                    } catch (Exception ignored) {
+                        cameraPhotoUri = null;
+                    }
+                }
+
+                Intent chooser = Intent.createChooser(fileIntent, "ارفع إثبات الحالة");
+                chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, initialIntents);
+                startActivityForResult(chooser, FILE_CHOOSER_CODE);
                 return true;
             }
         });
@@ -168,6 +206,11 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void showOffline() {
+        splashView.setVisibility(View.GONE);
+        offlineView.setVisibility(View.VISIBLE);
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         webView.saveState(outState);
@@ -176,6 +219,11 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (offlineView.getVisibility() == View.VISIBLE) {
+            offlineView.setVisibility(View.GONE);
+            webView.loadUrl(LOCAL_PORTAL_URL);
+            return;
+        }
         if (webView.canGoBack()) {
             webView.goBack();
         } else {
@@ -186,15 +234,24 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILE_CHOOSER_CODE) {
-            Uri[] results = null;
-            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-                results = new Uri[]{data.getData()};
-            }
-            if (filePathCallback != null) {
-                filePathCallback.onReceiveValue(results);
-            }
-            filePathCallback = null;
+
+        if (requestCode != FILE_CHOOSER_CODE) {
+            return;
         }
+
+        Uri[] results = null;
+        if (resultCode == RESULT_OK) {
+            if (data != null && data.getData() != null) {
+                results = new Uri[]{data.getData()};
+            } else if (cameraPhotoUri != null) {
+                results = new Uri[]{cameraPhotoUri};
+            }
+        }
+
+        if (filePathCallback != null) {
+            filePathCallback.onReceiveValue(results);
+        }
+        filePathCallback = null;
+        cameraPhotoUri = null;
     }
 }
