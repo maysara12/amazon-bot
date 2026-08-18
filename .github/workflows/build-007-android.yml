@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -34,6 +34,27 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Assemble bundled 007 portal UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android-007/app/src/main/assets/www
+          cat android-007/portal/portal.b64.part1 \
+              android-007/portal/portal.b64.part2 \
+              android-007/portal/portal.b64.part3 \
+              android-007/portal/portal.b64.part4 \
+            | base64 --decode \
+            | gzip --decompress \
+            > android-007/app/src/main/assets/www/index.html
+          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 50000
+          grep -q "SUPABASE_URL" android-007/app/src/main/assets/www/index.html
+          grep -q "إدارة المشرفين والصلاحيات" android-007/app/src/main/assets/www/index.html
+          if grep -q "007-operations-portal-e5gbhey78" android-007/app/src/main/assets/www/index.html; then
+            echo "ERROR: Internal Vercel deployment dependency found in bundled portal"
+            exit 1
+          fi
+          echo "Bundled portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
+
       - name: Build Debug APK
         working-directory: android-007
         run: gradle :app:assembleDebug --stacktrace
@@ -41,7 +62,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 007-Operations-APK
+          name: 007-Operations-Standalone-v1.0.3
           path: android-007/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
