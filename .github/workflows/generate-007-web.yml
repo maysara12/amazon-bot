@@ -1,0 +1,86 @@
+name: Generate 007 Operations Web Source
+
+on:
+  push:
+    branches:
+      - 007-operations-android
+    paths:
+      - 'android-007/portal/**'
+      - '.github/workflows/generate-007-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: 007-operations-android
+
+      - name: Build unified web portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p web-007
+          cat android-007/portal/portal.b64.part1 \
+              android-007/portal/portal.b64.part2 \
+              android-007/portal/portal.b64.part3 \
+              android-007/portal/portal.b64.part4 \
+            | base64 --decode \
+            | gzip --decompress \
+            > web-007/index.html
+
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('web-007/index.html')
+          patch = Path('android-007/portal/v110_patch.html').read_text(encoding='utf-8')
+          html = page.read_text(encoding='utf-8')
+          if '</body>' not in html:
+              raise SystemExit('ERROR: </body> not found')
+          html = html.replace('</body>', patch + '\n</body>', 1)
+          page.write_text(html, encoding='utf-8')
+          PY
+
+          test "$(wc -c < web-007/index.html)" -gt 55000
+          grep -q "SUPABASE_URL" web-007/index.html
+          grep -q "v110CaseModal" web-007/index.html
+          grep -q "آخر ردود الشركة" web-007/index.html
+          if grep -q "007-operations-portal-e5gbhey78" web-007/index.html; then
+            echo "ERROR: protected internal Vercel dependency found"
+            exit 1
+          fi
+
+          cat > web-007/vercel.json <<'JSON'
+          {
+            "cleanUrls": true,
+            "trailingSlash": false,
+            "headers": [
+              {
+                "source": "/(.*)",
+                "headers": [
+                  {"key": "X-Content-Type-Options", "value": "nosniff"},
+                  {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
+                  {"key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()"}
+                ]
+              }
+            ]
+          }
+          JSON
+
+      - name: Commit generated web source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "007 Operations Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git add web-007/index.html web-007/vercel.json
+          if git diff --cached --quiet; then
+            echo "Web source already current"
+            exit 0
+          fi
+          git commit -m "Generate unified 007 Operations web v1.1.0 [skip ci]"
+          git push origin HEAD:007-operations-android
