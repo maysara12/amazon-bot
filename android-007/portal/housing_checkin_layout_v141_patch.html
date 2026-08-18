@@ -1,0 +1,52 @@
+<style id="housingCheckinLayoutV141Style">
+#hh132ReqModal .hh132-form-grid{align-items:start;gap:14px}
+#hh132ReqModal .field{min-width:0}
+#hh132ReqModal .field>label{display:block;margin:0 0 7px;line-height:1.45;font-size:13px;color:#cbd6e2;font-weight:700}
+#hh132ReqModal .field>.input{min-height:54px}
+#hh132ReqModal #hh135BillingField{margin:0}
+#hh141BillingNote{margin:12px 0 2px;padding:10px 12px;border:1px solid #5f5130;border-right:3px solid #d8b25c;border-radius:11px;background:#0d1d30;color:#aebed0;font-size:12px;line-height:1.7}
+#hh141BillingNote b{color:#f1cf79}
+#hh141BillingNote .example{display:block;margin-top:3px;color:#8397ae}
+@media(max-width:720px){#hh132ReqModal .hh132-form-grid{grid-template-columns:1fr!important;gap:11px}#hh132ReqModal .field>.input{min-height:50px}#hh141BillingNote{font-size:11.5px;padding:9px 10px}}
+</style>
+<script id="housingCheckinLayoutV141Script">
+(function(){
+'use strict';
+let busy=false;
+function tidy(){
+ if(busy)return;busy=true;
+ try{
+  const modal=document.getElementById('hh132ReqModal');
+  const billing=document.getElementById('hh135BillingField');
+  const date=document.getElementById('hh132ReqDate');
+  if(!modal||!billing||!date)return;
+  const grid=date.closest('.hh132-form-grid');
+  if(!grid)return;
+  const oldInfo=billing.querySelector('.hh135-info');
+  if(oldInfo)oldInfo.remove();
+  let note=document.getElementById('hh141BillingNote');
+  if(!note){
+    note=document.createElement('div');
+    note.id='hh141BillingNote';
+    note.innerHTML='<b>ملاحظة:</b> لو فيه شهور قديمة متسوية بالفعل، اختار في «بداية المحاسبة» أول يوم غير متسوي.<span class="example">مثال: يونيو ويوليو متسويين → بداية المحاسبة 01/08.</span>';
+    grid.insertAdjacentElement('afterend',note);
+  }
+  const type=document.getElementById('hh132ReqType')?.value||'';
+  note.style.display=(type==='CHECK_IN'&&billing.style.display!=='none')?'block':'none';
+  const dLabel=date.closest('.field')?.querySelector('label');
+  if(type==='CHECK_IN'&&dLabel)dLabel.textContent='تاريخ الدخول الفعلي';
+  const bLabel=billing.querySelector('label');
+  if(bLabel)bLabel.textContent='بداية المحاسبة داخل النظام';
+ }finally{busy=false}
+}
+const obs=new MutationObserver(()=>setTimeout(tidy,0));
+function boot(){
+ const modal=document.getElementById('hh132ReqModal');
+ if(!modal){setTimeout(boot,250);return}
+ obs.observe(modal,{childList:true,subtree:true,attributes:true,attributeFilter:['style','value']});
+ document.addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('[data-in],[data-out],#hh132ReqSave'))setTimeout(tidy,40)},true);
+ tidy();
+}
+boot();
+})();
+</script>
