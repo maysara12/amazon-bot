@@ -2,18 +2,23 @@ package com.zerozeroseven.operations;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_CODE = 1001;
+    private static final String PORTAL_URL = "https://007-operations-portal-e5gbhey78-virgitech0007-3160s-projects.vercel.app/?app=android-native";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,15 +26,34 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
+        webView.setBackgroundColor(android.graphics.Color.rgb(7, 17, 31));
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setDatabaseEnabled(true);
         webView.getSettings().setAllowFileAccess(true);
         webView.getSettings().setAllowContentAccess(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        webView.getSettings().setUserAgentString(webView.getSettings().getUserAgentString() + " 007OperationsAndroid/1.0");
+        webView.getSettings().setUserAgentString(webView.getSettings().getUserAgentString() + " 007OperationsAndroid/1.0.1");
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame()) {
+                    Toast.makeText(MainActivity.this, "تعذر الاتصال ببوابة 007. حاول مرة أخرى.", Toast.LENGTH_LONG).show();
+                }
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
@@ -60,7 +84,7 @@ public class MainActivity extends Activity {
         });
 
         if (savedInstanceState == null) {
-            webView.loadUrl("https://007-operations-portal.vercel.app/?app=android");
+            webView.loadUrl(PORTAL_URL);
         } else {
             webView.restoreState(savedInstanceState);
         }
