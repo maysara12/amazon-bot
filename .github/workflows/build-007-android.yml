@@ -5,7 +5,12 @@ on:
     branches:
       - 007-operations-android
     paths:
-      - 'android-007/**'
+      # Native Android changes only. Portal/UI patches are live-web updates and must not rebuild the APK.
+      - 'android-007/app/**'
+      - 'android-007/build.gradle'
+      - 'android-007/settings.gradle'
+      - 'android-007/gradle.properties'
+      - 'android-007/icon/**'
       - '.github/workflows/build-007-android.yml'
   workflow_dispatch:
 
@@ -64,53 +69,83 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Verify live portal and capture complete fallback
+      - name: Verify live portal and assemble bundled fallback
         shell: bash
         run: |
           set -euo pipefail
+
+          # Verify the Android shell is still linked to the live portal.
           grep -q 'APP_VERSION = "1.3.3"' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'PUBLIC_PORTAL_ORIGIN + "/portal?app=android&v=" + APP_VERSION' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'LOAD_NO_CACHE' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'LOCAL_FALLBACK_URL' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
 
+          # Production /portal is intentionally a small runtime composer now.
           curl --fail --silent --show-error --location \
             'https://007-operations-portal.vercel.app/portal' \
-            --output /tmp/live-portal.html
+            --output /tmp/live-composer.html
+          grep -q '007 Operations' /tmp/live-composer.html
+          grep -q 'fullPortalComposerV135' /tmp/live-composer.html
+          grep -q 'housing_v135_fix_patch.html' /tmp/live-composer.html
+          grep -q 'realtime_v134_patch.html' /tmp/live-composer.html
 
-          test "$(wc -c < /tmp/live-portal.html)" -gt 100000
-          grep -q '007 Operations' /tmp/live-portal.html
-          grep -q 'SUPABASE_URL' /tmp/live-portal.html
-          grep -q 'modulesV120Script' /tmp/live-portal.html
-          grep -q 'data-core="orders-only"' /tmp/live-portal.html
-          grep -q 'hh132Script' /tmp/live-portal.html
-          grep -q 'إثبات الساعات' /tmp/live-portal.html
-          grep -q 'خرجوا من السكن' /tmp/live-portal.html
-          grep -q 'loginErrorV112Script' /tmp/live-portal.html
-          grep -q 'ردود الشركة' /tmp/live-portal.html
-          grep -q 'الاسترداد' /tmp/live-portal.html
-          grep -q 'المستخدمون' /tmp/live-portal.html
-
-          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(|window\.me' /tmp/live-portal.html; then
-            echo 'ERROR: stale compatibility code exists in live portal snapshot'
-            exit 1
-          fi
+          # Build a complete offline fallback from immutable base + current portal modules.
+          curl --fail --silent --show-error --location \
+            'https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html' \
+            --output /tmp/base.html
+          grep -q 'SUPABASE_URL' /tmp/base.html
+          grep -q '</body>' /tmp/base.html
 
           mkdir -p android-007/app/src/main/assets/www
-          cp /tmp/live-portal.html android-007/app/src/main/assets/www/index.html
-
           python - <<'PY'
           from pathlib import Path
           import re
-          html = Path('android-007/app/src/main/assets/www/index.html').read_text(encoding='utf-8')
+
+          base = Path('/tmp/base.html').read_text(encoding='utf-8')
+          patch_paths = [
+              'android-007/portal/v110_patch.html',
+              'android-007/portal/modules_v120_patch.html',
+              'android-007/portal/hurghada_housing_v132_patch.html',
+              'android-007/portal/housing_v135_fix_patch.html',
+              'android-007/portal/auth_v111_patch.html',
+              'android-007/portal/realtime_v134_patch.html',
+          ]
+          patches = [Path(p).read_text(encoding='utf-8') for p in patch_paths]
+          if '</body>' not in base:
+              raise SystemExit('ERROR: immutable base is missing </body>')
+          html = base.replace('</body>', '\n'.join(patches) + '\n</body>', 1)
+          Path('android-007/app/src/main/assets/www/index.html').write_text(html, encoding='utf-8')
+
           scripts = []
           for attrs, body in re.findall(r'<script([^>]*)>(.*?)</script>', html, flags=re.S | re.I):
-              if 'application/json' in attrs.lower():
-                  continue
-              if 'src=' in attrs.lower():
+              attrs_l = attrs.lower()
+              if 'application/json' in attrs_l or 'src=' in attrs_l:
                   continue
               scripts.append(body)
           Path('/tmp/007-v133-fallback.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
+
+          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 100000
+          grep -q 'SUPABASE_URL' android-007/app/src/main/assets/www/index.html
+          grep -q 'modulesV120Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'data-core="orders-only"' android-007/app/src/main/assets/www/index.html
+          grep -q 'hh132Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingV135FixScript' android-007/app/src/main/assets/www/index.html
+          grep -q 'housing_create_checkout_request' android-007/app/src/main/assets/www/index.html
+          grep -q 'loginErrorV112Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'realtimeV134Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'postgres_changes' android-007/app/src/main/assets/www/index.html
+          grep -q 'إثبات الساعات' android-007/app/src/main/assets/www/index.html
+          grep -q 'خرجوا من السكن' android-007/app/src/main/assets/www/index.html
+          grep -q 'ردود الشركة' android-007/app/src/main/assets/www/index.html
+          grep -q 'الاسترداد' android-007/app/src/main/assets/www/index.html
+          grep -q 'المستخدمون' android-007/app/src/main/assets/www/index.html
+
+          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(|window\.me' android-007/app/src/main/assets/www/index.html; then
+            echo 'ERROR: stale compatibility code exists in assembled fallback'
+            exit 1
+          fi
+
           node --check /tmp/007-v133-fallback.js
 
       - name: Assemble exact premium 007 launcher icon
@@ -153,7 +188,7 @@ jobs:
           {
             echo '007 Operations APK v1.3.3'
             echo 'status=SUCCESS'
-            echo 'mode=LIVE_PORTAL_WITH_LIVE_SNAPSHOT_FALLBACK'
+            echo 'mode=LIVE_PORTAL_WITH_ASSEMBLED_FALLBACK'
             echo 'portal=https://007-operations-portal.vercel.app/portal'
             echo "run_id=${GITHUB_RUN_ID}"
             echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
