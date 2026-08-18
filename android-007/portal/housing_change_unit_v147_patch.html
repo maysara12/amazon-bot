@@ -1,0 +1,79 @@
+<style id="housingChangeUnitV147Style">
+.hh147-move{border-color:#4a6688!important;color:#b9d8ff!important}
+#hh147MoveInfo{line-height:1.8}
+</style>
+<script id="housingChangeUnitV147Script" data-version="1.4.7">
+(function(){
+'use strict';
+if(window.__housingChangeUnitV147)return;window.__housingChangeUnitV147=true;
+let currentStay=null,busy=false;
+const byId=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const isAdmin=()=>!!me&&(['OWNER','ADMIN','REVIEWER'].includes(me.role)||me.can_see_internal===true);
+function ensureModal(){
+ if(byId('hh147MoveModal'))return;
+ const wrap=document.createElement('div');
+ wrap.innerHTML=`<div id="hh147MoveModal" class="modal"><div class="modal-card"><div class="modal-head"><h3>تغيير شقة المندوب</h3><button class="close" id="hh147MoveClose">×</button></div><div id="hh147MoveInfo" class="hh132-note"></div><div class="field"><label>الشقة الصحيحة</label><select id="hh147MoveUnit" class="input"></select></div><div class="field"><label>سبب التعديل</label><input id="hh147MoveNote" class="input" value="تصحيح الشقة المسجلة بالخطأ"></div><button id="hh147MoveSave" class="btn btn-primary wide">حفظ الشقة الجديدة</button></div></div>`;
+ document.body.appendChild(wrap.firstElementChild);
+ byId('hh147MoveClose').onclick=()=>byId('hh147MoveModal').classList.remove('open');
+}
+async function openMove(stayId){
+ if(!isAdmin())return toast('تغيير الشقة متاح للإدارة فقط',true);
+ ensureModal();
+ try{
+  const arr=await api(`housing_stays?select=id,zone_id,unit_id,rider_id,rider_name&status=eq.ACTIVE&id=eq.${encodeURIComponent(stayId)}&limit=1`);
+  currentStay=Array.isArray(arr)?arr[0]:null;
+  if(!currentStay)return toast('الإقامة غير موجودة أو غير نشطة',true);
+  const [units,active]=await Promise.all([
+   api(`housing_units?select=id,name,capacity,status&zone_id=eq.${currentStay.zone_id}&status=eq.ACTIVE&order=name.asc`),
+   api(`housing_stays?select=unit_id&zone_id=eq.${currentStay.zone_id}&status=eq.ACTIVE`)
+  ]);
+  const counts={};(active||[]).forEach(x=>counts[x.unit_id]=(counts[x.unit_id]||0)+1);
+  const sel=byId('hh147MoveUnit');
+  sel.innerHTML=(units||[]).map(u=>{
+    const occ=counts[u.id]||0,full=occ>=Number(u.capacity||0)&&u.id!==currentStay.unit_id;
+    return `<option value="${u.id}" ${u.id===currentStay.unit_id?'selected':''} ${full?'disabled':''}>${esc(u.name)} — ${occ}/${u.capacity}${full?' (ممتلئة)':''}</option>`;
+  }).join('');
+  const cur=(units||[]).find(u=>u.id===currentStay.unit_id);
+  byId('hh147MoveInfo').innerHTML=`<b>${esc(currentStay.rider_name)} — ${esc(currentStay.rider_id)}</b><br>الشقة الحالية: <b>${esc(cur?.name||'—')}</b><br><span class="muted">التعديل سيغيّر الشقة فقط بدون تغيير تاريخ الدخول أو حساب السكن.</span>`;
+  byId('hh147MoveNote').value='تصحيح الشقة المسجلة بالخطأ';
+  byId('hh147MoveModal').classList.add('open');
+ }catch(e){toast(e.message||'تعذر تحميل الشقق',true)}
+}
+async function saveMove(){
+ if(!currentStay)return;
+ const unitId=byId('hh147MoveUnit').value,note=byId('hh147MoveNote').value.trim();
+ if(!unitId)return toast('اختار الشقة الصحيحة',true);
+ const btn=byId('hh147MoveSave');btn.disabled=true;
+ try{
+  await api('rpc/housing_move_active_stay_unit',{method:'POST',body:JSON.stringify({p_stay_id:currentStay.id,p_unit_id:unitId,p_note:note||null})});
+  byId('hh147MoveModal').classList.remove('open');
+  toast('تم تغيير شقة المندوب بنجاح ✅');
+  currentStay=null;
+  if(typeof window.refreshAll==='function')await window.refreshAll();
+  setTimeout(()=>{document.querySelector('[data-hht="stays"]')?.click();decorate()},120);
+ }catch(e){toast(e.message||'تعذر تغيير الشقة',true)}finally{btn.disabled=false}
+}
+function decorate(){
+ if(!isAdmin()||busy)return;busy=true;
+ try{
+  document.querySelectorAll('#hh132Body [data-out]').forEach(out=>{
+    const cell=out.closest('td');if(!cell||cell.querySelector('[data-hh147-move]'))return;
+    const b=document.createElement('button');
+    b.className='hh132-btn hh147-move';b.dataset.hh147Move=out.dataset.out;b.textContent='تغيير الشقة';
+    cell.insertBefore(b,out);
+    cell.style.display='flex';cell.style.gap='6px';cell.style.flexWrap='wrap';
+  });
+ }finally{busy=false}
+}
+document.addEventListener('click',e=>{
+ const t=e.target instanceof Element?e.target:null;if(!t)return;
+ const mv=t.closest('[data-hh147-move]');if(mv){e.preventDefault();e.stopPropagation();openMove(mv.dataset.hh147Move);return}
+ if(t.closest('#hh147MoveSave')){e.preventDefault();e.stopPropagation();saveMove();return}
+ if(t.closest('[data-hht="stays"]'))setTimeout(decorate,120);
+},true);
+const prevRefresh=window.refreshAll;
+if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);setTimeout(decorate,120);return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(decorate,250),{once:true});else setTimeout(decorate,250);
+})();
+</script>
