@@ -1,6 +1,5 @@
 name: Build 007 Operations APK
 
-# v1.3.2 Hurghada housing workflow
 on:
   push:
     branches:
@@ -54,18 +53,26 @@ jobs:
           grep -q 'إثبات الساعات' /tmp/hh132.html
           grep -q 'خرجوا من السكن' /tmp/hh132.html
 
+      - name: Fetch verified immutable portal base
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            'https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html' \
+            --output /tmp/base.html
+          grep -q 'SUPABASE_URL' /tmp/base.html
+          grep -q '</body>' /tmp/base.html
+          if grep -Eq 'hh131Script|hurghadaHousingV130Script' /tmp/base.html; then
+            echo 'ERROR: immutable base unexpectedly contains Housing patches'
+            exit 1
+          fi
+
       - name: Assemble bundled 007 portal UI
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p android-007/app/src/main/assets/www
-          cat android-007/portal/portal.b64.part1 \
-              android-007/portal/portal.b64.part2 \
-              android-007/portal/portal.b64.part3 \
-              android-007/portal/portal.b64.part4 \
-            | base64 --decode \
-            | gzip --decompress \
-            > android-007/app/src/main/assets/www/index.html
+          cp /tmp/base.html android-007/app/src/main/assets/www/index.html
 
           python - <<'PY'
           from pathlib import Path
@@ -73,41 +80,33 @@ jobs:
           page = Path('android-007/app/src/main/assets/www/index.html')
           patches = [
               Path('android-007/portal/v110_patch.html').read_text(encoding='utf-8'),
-              Path('android-007/portal/auth_v111_patch.html').read_text(encoding='utf-8'),
               Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
               Path('/tmp/hh132.html').read_text(encoding='utf-8'),
+              Path('android-007/portal/auth_v111_patch.html').read_text(encoding='utf-8'),
           ]
           html = page.read_text(encoding='utf-8')
           if '</body>' not in html:
-              raise SystemExit('ERROR: </body> not found in bundled portal')
+              raise SystemExit('ERROR: </body> not found in verified base portal')
           html = html.replace('</body>', '\n'.join(patches) + '\n</body>', 1)
           page.write_text(html, encoding='utf-8')
-          scripts=re.findall(r'<script[^>]*>(.*?)</script>',html,flags=re.S)
-          Path('/tmp/007-v132.js').write_text('\n'.join(scripts),encoding='utf-8')
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, flags=re.S)
+          Path('/tmp/007-v132.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
 
           node --check /tmp/007-v132.js
           test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 100000
-          grep -q "SUPABASE_URL" android-007/app/src/main/assets/www/index.html
-          grep -q "authV111Script" android-007/app/src/main/assets/www/index.html
-          grep -q "loginErrorV112Script" android-007/app/src/main/assets/www/index.html
-          grep -q "modulesV120Script" android-007/app/src/main/assets/www/index.html
-          grep -q "hh132Script" android-007/app/src/main/assets/www/index.html
-          grep -q "إثبات الساعات" android-007/app/src/main/assets/www/index.html
-          grep -q "خرجوا من السكن" android-007/app/src/main/assets/www/index.html
-          if grep -q "hh131Script" android-007/app/src/main/assets/www/index.html; then
-            echo "ERROR: old v1.3.1 housing UI found in bundle"
+          grep -q 'SUPABASE_URL' android-007/app/src/main/assets/www/index.html
+          grep -q 'authV111Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'loginErrorV112Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'data-core="orders-only"' android-007/app/src/main/assets/www/index.html
+          grep -q 'hh132Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'إثبات الساعات' android-007/app/src/main/assets/www/index.html
+          grep -q 'خرجوا من السكن' android-007/app/src/main/assets/www/index.html
+          if grep -Eq 'إضافة ساكن|نظام السكن|المساهمة الشهرية|hh131Script|hurghadaHousingV130Script' android-007/app/src/main/assets/www/index.html; then
+            echo 'ERROR: legacy Housing leaked into final bundle'
             exit 1
           fi
-          if grep -q "hurghadaHousingV130Script" android-007/app/src/main/assets/www/index.html; then
-            echo "ERROR: old v1.3.0 housing UI found in bundle"
-            exit 1
-          fi
-          if grep -q "007-operations-portal-e5gbhey78" android-007/app/src/main/assets/www/index.html; then
-            echo "ERROR: Internal Vercel deployment dependency found in bundled portal"
-            exit 1
-          fi
-          echo "Bundled v1.3.2 portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
+          echo "Bundled clean v1.3.2 portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
 
       - name: Assemble exact premium 007 launcher icon
         shell: bash
@@ -121,7 +120,7 @@ jobs:
             | base64 --decode \
             > android-007/app/src/main/res/drawable/ic_launcher_007.webp
           test "$(wc -c < android-007/app/src/main/res/drawable/ic_launcher_007.webp)" -eq 44070
-          echo "235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp" | sha1sum -c -
+          echo '235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp' | sha1sum -c -
 
       - name: Verify v1.3.2 version
         shell: bash
@@ -145,18 +144,18 @@ jobs:
           set -euo pipefail
           mkdir -p build-status
           {
-            echo "007 Operations APK v1.3.2"
-            echo "status=SUCCESS"
+            echo '007 Operations APK v1.3.2'
+            echo 'status=SUCCESS'
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "artifact=007-Operations-v1.3.2"
+            echo 'artifact=007-Operations-v1.3.2'
           } > build-status/007-operations-v1.3.2.txt
-          git config user.name "007 APK Builder"
-          git config user.email "actions@users.noreply.github.com"
+          git config user.name '007 APK Builder'
+          git config user.email 'actions@users.noreply.github.com'
           git add build-status/007-operations-v1.3.2.txt
-          git commit -m "Record successful 007 Operations v1.3.2 build [skip ci]" || exit 0
+          git commit -m 'Record successful 007 Operations v1.3.2 build [skip ci]' || exit 0
           for i in 1 2 3; do
             git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
             sleep 3
           done
-          echo "Build succeeded but status push was skipped after retries"
+          echo 'Build succeeded; status marker push skipped after retries'
