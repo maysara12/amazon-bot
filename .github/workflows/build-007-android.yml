@@ -1,6 +1,6 @@
 name: Build 007 Operations APK
 
-# v1.3.0 Hurghada housing workflow
+# v1.3.1 clean Hurghada housing workflow
 on:
   push:
     branches:
@@ -62,6 +62,7 @@ jobs:
               Path('android-007/portal/auth_v111_patch.html').read_text(encoding='utf-8'),
               Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8'),
               Path('android-007/portal/hurghada_housing_v130_patch.html').read_text(encoding='utf-8'),
+              Path('android-007/portal/hurghada_housing_v131_hotfix.html').read_text(encoding='utf-8'),
           ]
           html = page.read_text(encoding='utf-8')
           if '</body>' not in html:
@@ -69,24 +70,23 @@ jobs:
           html = html.replace('</body>', '\n'.join(patches) + '\n</body>', 1)
           page.write_text(html, encoding='utf-8')
           scripts=re.findall(r'<script[^>]*>(.*?)</script>',html,flags=re.S)
-          Path('/tmp/007-v130.js').write_text('\n'.join(scripts),encoding='utf-8')
+          Path('/tmp/007-v131.js').write_text('\n'.join(scripts),encoding='utf-8')
           PY
 
-          node --check /tmp/007-v130.js
-          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 100000
+          node --check /tmp/007-v131.js
+          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 110000
           grep -q "SUPABASE_URL" android-007/app/src/main/assets/www/index.html
           grep -q "authV111Script" android-007/app/src/main/assets/www/index.html
           grep -q "loginErrorV112Script" android-007/app/src/main/assets/www/index.html
           grep -q "modulesV120Script" android-007/app/src/main/assets/www/index.html
-          grep -q "hurghadaHousingV130Script" android-007/app/src/main/assets/www/index.html
-          grep -q "سكن الغردقة" android-007/app/src/main/assets/www/index.html
-          grep -q "312" android-007/app/src/main/assets/www/index.html
-          grep -q "البريد الإلكتروني أو كلمة المرور غير صحيحة" android-007/app/src/main/assets/www/index.html
+          grep -q "hh131Script" android-007/app/src/main/assets/www/index.html
+          grep -q "طلبات الدخول والخروج" android-007/app/src/main/assets/www/index.html
+          grep -q "لا يوجد «نظام سكن»" android-007/app/src/main/assets/www/index.html
           if grep -q "007-operations-portal-e5gbhey78" android-007/app/src/main/assets/www/index.html; then
             echo "ERROR: Internal Vercel deployment dependency found in bundled portal"
             exit 1
           fi
-          echo "Bundled v1.3.0 portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
+          echo "Bundled v1.3.1 portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
 
       - name: Assemble exact premium 007 launcher icon
         shell: bash
@@ -102,9 +102,9 @@ jobs:
           test "$(wc -c < android-007/app/src/main/res/drawable/ic_launcher_007.webp)" -eq 44070
           echo "235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp" | sha1sum -c -
 
-      - name: Verify v1.3.0 version
+      - name: Verify v1.3.1 version
         shell: bash
-        run: grep -q "versionName '1.3.0'" android-007/app/build.gradle
+        run: grep -q "versionName '1.3.1'" android-007/app/build.gradle
 
       - name: Build Debug APK
         working-directory: android-007
@@ -113,25 +113,25 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 007-Operations-v1.3.0
+          name: 007-Operations-v1.3.1
           path: android-007/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Mark successful v1.3.0 build
+      - name: Mark successful v1.3.1 build
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build-status
           {
-            echo "007 Operations APK v1.3.0"
+            echo "007 Operations APK v1.3.1"
             echo "status=SUCCESS"
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "artifact=007-Operations-v1.3.0"
-          } > build-status/007-operations-v1.3.0.txt
+            echo "artifact=007-Operations-v1.3.1"
+          } > build-status/007-operations-v1.3.1.txt
           git config user.name "007 APK Builder"
           git config user.email "actions@users.noreply.github.com"
-          git add build-status/007-operations-v1.3.0.txt
-          git commit -m "Record successful 007 Operations v1.3.0 build [skip ci]" || true
+          git add build-status/007-operations-v1.3.1.txt
+          git commit -m "Record successful 007 Operations v1.3.1 build [skip ci]" || true
           git push origin HEAD:007-operations-android
