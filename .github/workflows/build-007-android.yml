@@ -55,6 +55,21 @@ jobs:
           fi
           echo "Bundled portal size: $(wc -c < android-007/app/src/main/assets/www/index.html) bytes"
 
+      - name: Assemble exact premium 007 launcher icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android-007/app/src/main/res/drawable
+          cat android-007/icon/ic_launcher.webp.b64.part1 \
+              android-007/icon/ic_launcher.webp.b64.part2 \
+              android-007/icon/ic_launcher.webp.b64.part3 \
+              android-007/icon/ic_launcher.webp.b64.part4 \
+            | base64 --decode \
+            > android-007/app/src/main/res/drawable/ic_launcher_007.webp
+          test "$(wc -c < android-007/app/src/main/res/drawable/ic_launcher_007.webp)" -eq 44070
+          echo "235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp" | sha1sum -c -
+          echo "Premium launcher icon verified: 44070 bytes"
+
       - name: Build Debug APK
         working-directory: android-007
         run: gradle :app:assembleDebug --stacktrace
