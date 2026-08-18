@@ -19,9 +19,9 @@
         android:background="#07111F">
 
         <ImageView
-            android:layout_width="220dp"
-            android:layout_height="220dp"
-            android:src="@drawable/ic_launcher"
+            android:layout_width="224dp"
+            android:layout_height="224dp"
+            android:src="@drawable/ic_launcher_007"
             android:contentDescription="007 Operations"
             android:scaleType="fitCenter" />
 
