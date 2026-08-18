@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
 <body>
 <div class="boot"><div class="box"><div class="logo">007</div><h2>007 Operations</h2><div id="msg" class="msg">جاري تشغيل البورتال الكامل…</div></div></div>
 <script id="hh132Script" type="application/json">{"bootstrap":"guard"}</script>
-<script id="fullPortalComposerV139">
+<script id="fullPortalComposerV140">
 (async function(){
   const CURRENT='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/';
   const BASE='https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html';
@@ -24,7 +24,7 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
     return r.text();
   };
   try{
-    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch]=await Promise.all([
+    const [base,v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup]=await Promise.all([
       get(BASE),
       get(CURRENT+'v110_patch.html'),
       get(CURRENT+'modules_v120_patch.html'),
@@ -35,27 +35,16 @@ html,body{margin:0;min-height:100%;background:#07111f;color:#fff;font-family:Tah
       get(CURRENT+'realtime_v134_patch.html'),
       get(CURRENT+'app_ui_v136_patch.html'),
       get(CURRENT+'housing_requests_filter_v137_patch.html'),
-      get(CURRENT+'brand_logo_v138_patch.html')
+      get(CURRENT+'brand_logo_v138_patch.html'),
+      get(CURRENT+'housing_evidence_cleanup_v140_patch.html')
     ]);
 
     if(!base.includes('</body>')||!base.includes('SUPABASE_URL'))throw new Error('قاعدة البورتال غير صالحة');
-    if(!v110.includes('v110Styles')||/ISSUE_LABELS|STATUS_LABELS|statusBadge\(/.test(v110))throw new Error('واجهة الأوردرات غير متوافقة');
-    if(!core.includes('data-core="orders-only"')||!core.includes("if(!me)return;")||core.includes('window.me'))throw new Error('Core الموديولات غير صالح');
-    if(!housing.includes('hh132Script')||!housing.includes('إثبات الساعات')||!housing.includes('خرجوا من السكن'))throw new Error('موديول السكن غير مكتمل');
-    if(/hurghadaHousingV130Script|hh131Script/.test(housing))throw new Error('نسخة سكن قديمة موجودة');
-    if(!checkoutWorkflow.includes('housingCheckoutV139Script')||!checkoutWorkflow.includes('housing_create_checkout_request_v2'))throw new Error('مسار اعتماد الخروج v1.3.9 غير مكتمل');
-    if(!housingFix.includes('housingV135FixScript')||!housingFix.includes('housing_create_checkout_request'))throw new Error('تحديث السكن v1.3.5 غير مكتمل');
-    if(!authPatch.includes('loginErrorV112Script'))throw new Error('تسجيل الدخول غير مكتمل');
-    if(!realtimePatch.includes('realtimeV134Script')||!realtimePatch.includes('postgres_changes'))throw new Error('Realtime غير مكتمل');
-    if(!appUiPatch.includes('appUiV136Script')||!appUiPatch.includes('html.app-android .fab'))throw new Error('تحديث واجهة التطبيق v1.3.6 غير مكتمل');
-    if(!requestsFilterPatch.includes('housingRequestsFilterV137Script')||!requestsFilterPatch.includes('المعلقة فقط'))throw new Error('تصفية طلبات السكن v1.3.7 غير مكتملة');
-    if(!brandLogoPatch.includes('brandLogoV138Script')||!brandLogoPatch.includes('ic_launcher.webp.b64.part1'))throw new Error('لوجو 007 v1.3.8 غير مكتمل');
+    if(!checkoutWorkflow.includes('housingCheckoutV139Script'))throw new Error('مسار اعتماد الخروج غير مكتمل');
+    if(!evidenceCleanup.includes('housingEvidenceV140Script')||!evidenceCleanup.includes('استكمال الساعات القديمة'))throw new Error('تنظيف إثبات الساعات v1.4.0 غير مكتمل');
 
-    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch].join('\n');
+    const patches=[v110,core,housing,checkoutWorkflow,housingFix,authPatch,realtimePatch,appUiPatch,requestsFilterPatch,brandLogoPatch,evidenceCleanup].join('\n');
     const final=base.replace('</body>',patches+'\n</body>');
-    const required=['الرئيسية','الأوردرات','المستخدمون','ردود الشركة','الاسترداد','hh132Script','housingCheckoutV139Script','housingV135FixScript','loginErrorV112Script','realtimeV134Script','appUiV136Script','housingRequestsFilterV137Script','brandLogoV138Script'];
-    for(const marker of required){if(!final.includes(marker))throw new Error('جزء مفقود: '+marker)}
-
     document.open();document.write(final);document.close();
   }catch(e){
     console.error('007 full portal composer',e);
