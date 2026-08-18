@@ -1,0 +1,56 @@
+<style id="housingStaysCleanupV142Style">
+.hh142-billing-cutover{color:#f2d17b;font-weight:700}
+</style>
+<script id="housingStaysCleanupV142Script">
+(function(){
+'use strict';
+let busy=false;
+function byId(x){return document.getElementById(x)}
+function arDate(v){if(!v)return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString('en-GB')}catch(_){return v}}
+function findTable(){
+  const root=byId('hh132Body'); if(!root) return null;
+  return [...root.querySelectorAll('.hh132-table')].find(t=>{
+    const txt=t.textContent||'';
+    return txt.includes('تاريخ الدخول') && txt.includes('Rider ID') && txt.includes('الطيار');
+  }) || null;
+}
+function billingIndexes(table){
+  const hr=table?.tHead?.rows?.[0]; if(!hr) return [];
+  return [...hr.cells].map((c,i)=>({i,txt:(c.textContent||'').trim()})).filter(x=>x.txt==='المحاسبة من').map(x=>x.i);
+}
+function clearBillingColumns(table){
+  const hr=table?.tHead?.rows?.[0]; if(!hr) return -1;
+  const indexes=billingIndexes(table).sort((a,b)=>b-a);
+  indexes.forEach(idx=>{
+    hr.deleteCell(idx);
+    [...(table.tBodies?.[0]?.rows||[])].forEach(tr=>{if(tr.cells[idx])tr.deleteCell(idx)});
+  });
+  return [...hr.cells].findIndex(c=>(c.textContent||'').includes('تاريخ الدخول'));
+}
+async function fix(){
+  if(busy)return;
+  const table=findTable();if(!table)return;
+  const existing=billingIndexes(table);
+  if(existing.length===1&&table.dataset.hh142Fixed==='1')return;
+  busy=true;
+  try{
+    const inIdx=clearBillingColumns(table);if(inIdx<0)return;
+    const active=await window.api('housing_stays?select=id,rider_id,check_in_date,billing_start_date&status=eq.ACTIVE&order=check_in_date.desc')||[];
+    const hr=table.tHead.rows[0];
+    const th=document.createElement('th');th.textContent='المحاسبة من';hr.insertBefore(th,hr.cells[inIdx+1]||null);
+    [...table.tBodies[0].rows].forEach((tr,i)=>{
+      const s=active[i],td=document.createElement('td');
+      if(s){
+        const bill=s.billing_start_date||s.check_in_date,cut=bill!==s.check_in_date;
+        td.innerHTML=`<span class="${cut?'hh142-billing-cutover':''}">${arDate(bill)}</span>${cut?'<br><small class="muted">ما قبلها متسوي</small>':''}`;
+      }else td.textContent='—';
+      tr.insertBefore(td,tr.cells[inIdx+1]||null);
+    });
+    table.dataset.hh142Fixed='1';
+  }catch(e){console.warn('housing stays cleanup v142',e)}finally{busy=false}
+}
+const obs=new MutationObserver(()=>setTimeout(fix,60));
+function boot(){const root=byId('hh132Body');if(root){obs.observe(root,{childList:true,subtree:true});fix()}else setTimeout(boot,250)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+</script>
