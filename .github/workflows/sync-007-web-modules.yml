@@ -1,0 +1,58 @@
+name: Sync 007 Web Modules
+
+on:
+  push:
+    branches:
+      - 007-operations-android
+    paths:
+      - 'android-007/portal/modules_v120_patch.html'
+      - '.github/workflows/sync-007-web-modules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: 007-operations-android
+
+      - name: Inject modular UI into web source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          page = Path('web-007/index.html')
+          patch = Path('android-007/portal/modules_v120_patch.html').read_text(encoding='utf-8')
+          html = page.read_text(encoding='utf-8')
+          start='<!-- MODULES_V120_START -->'
+          end='<!-- MODULES_V120_END -->'
+          block=start+'\n'+patch+'\n'+end
+          if start in html and end in html:
+              html=re.sub(re.escape(start)+r'.*?'+re.escape(end),block,html,flags=re.S)
+          else:
+              if '</body>' not in html:
+                  raise SystemExit('ERROR: </body> missing in web source')
+              html=html.replace('</body>',block+'\n</body>',1)
+          page.write_text(html,encoding='utf-8')
+          print('web source bytes',len(html))
+          PY
+          grep -q 'modulesV120Script' web-007/index.html
+          grep -q 'MODULES_V120_START' web-007/index.html
+
+      - name: Commit synchronized web source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name '007 Web Sync'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web-007/index.html
+          git commit -m 'Sync modular UI into 007 web portal [skip ci]' || exit 0
+          git push origin HEAD:007-operations-android
