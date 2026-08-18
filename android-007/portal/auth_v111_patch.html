@@ -168,3 +168,21 @@
   else setTimeout(installLogin007,0);
 })();
 </script>
+<script id="hh132RuntimeLoader">
+(async function(){
+  if(document.getElementById('hh132Script'))return;
+  try{
+    if(typeof DecompressionStream==='undefined')throw new Error('المتصفح يحتاج تحديث لدعم واجهة السكن الجديدة');
+    const u='https://raw.githubusercontent.com/maysara12/amazon-bot/007-operations-android/android-007/portal/hurghada_housing_v132_patch.html.gz.b64?v=132';
+    const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Housing UI '+r.status);
+    const b64=(await r.text()).trim();
+    const bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+    const stream=new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const html=await new Response(stream).text();
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    doc.querySelectorAll('style').forEach(s=>{const n=document.createElement('style');n.id=s.id;n.textContent=s.textContent;document.head.appendChild(n)});
+    doc.querySelectorAll('script').forEach(s=>{const n=document.createElement('script');n.id=s.id;n.textContent=s.textContent;document.body.appendChild(n)});
+    setTimeout(()=>{if(typeof window.refreshAll==='function')window.refreshAll().catch?.(()=>{})},100);
+  }catch(e){console.error('hh132 runtime',e)}
+})();
+</script>
