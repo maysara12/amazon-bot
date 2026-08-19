@@ -208,10 +208,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Build steps intentionally generate/overwrite local fallback and launcher files.
+          # Discard those temporary working-tree changes before syncing the tracking marker.
+          git reset --hard HEAD
+          git clean -fd android-007/app/src/main/assets/www android-007/app/src/main/res/drawable
+          git fetch origin 007-operations-android
+          git reset --hard origin/007-operations-android
+
+          mkdir -p build-status
           printf 'run_id=%s\ncommit=%s\nstatus=SUCCESS\nartifact=007-Operations-v1.3.3-Live-V156\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > build-status/007-operations-v156-current-run.txt
           git config user.name '007 APK Builder'
           git config user.email 'actions@users.noreply.github.com'
           git add build-status/007-operations-v156-current-run.txt
-          git commit -m 'Mark V156 APK verified [skip ci]' || exit 0
-          git pull --rebase origin 007-operations-android
+          git commit -m 'Mark V156 APK verified [skip ci]'
           git push origin HEAD:007-operations-android
