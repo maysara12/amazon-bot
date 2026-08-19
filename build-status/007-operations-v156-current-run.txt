@@ -1,4 +1,3 @@
 run_id=32200429974
 commit=868e7d826b0aeb59c1e1e30f47b7bfbcd792cef3
-status=SUCCESS
-artifact=007-Operations-v1.3.3-Live-V156
+status=BUILDING
