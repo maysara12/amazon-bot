@@ -3,11 +3,13 @@
 .hh140-done{display:inline-flex;padding:5px 8px;border-radius:999px;background:#15392b;color:#83e2b2;font-size:11px}
 .hh140-wait{color:#8fa2b9;font-size:11px}
 </style>
-<script id="housingEvidenceV140Script">
+<script id="housingEvidenceV140Script" data-version="1.5.7">
 (function(){
 'use strict';
+if(window.__housingEvidenceV157)return;window.__housingEvidenceV157=true;
 let busy=false;
-const admin=()=>!!window.me&&(['OWNER','ADMIN','REVIEWER'].includes(window.me.role)||window.me.can_see_internal===true);
+function currentMe(){try{if(typeof me!=='undefined'&&me)return me}catch(_){}return window.me||null}
+const admin=()=>{const m=currentMe();return !!m&&(['OWNER','ADMIN','REVIEWER'].includes(m.role)||m.can_see_internal===true)};
 function panel(){const root=document.getElementById('hh132Body');if(!root)return null;return [...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.includes('إثبات الساعات حسب فترة الحساب'))||null}
 function parsePeriod(s){const m=String(s||'').match(/(\d{4}-\d{2}-\d{2})\s*[→-]\s*(\d{4}-\d{2}-\d{2})/);return m?[m[1],m[2]]:[null,null]}
 async function decorate(){
@@ -27,13 +29,14 @@ async function decorate(){
    const [ps,pe]=parsePeriod(tr.cells?.[1]?.textContent||'');
    const a=map.get(`${rider}|${ps}|${pe}`);if(!a)return;
    const action=tr.cells[tr.cells.length-1];if(!action)return;
-   action.innerHTML='';
    const n=evCount.get(a.id)||0;
-   if(a.actual_hours!=null){action.innerHTML='<span class="hh140-done">تم التقييم</span>';return}
-   if(admin()&&n>0){action.innerHTML=`<button class="hh140-legacy" data-hh140-hours="${a.id}" data-target="${a.target_hours}">استكمال الساعات القديمة</button>`}
-   else action.innerHTML='<span class="hh140-wait">يُستكمل من طلب الخروج</span>';
+   let html='';
+   if(a.actual_hours!=null)html='<span class="hh140-done">تم التقييم</span>';
+   else if(admin()&&n>0)html=`<button class="hh140-legacy" data-hh140-hours="${a.id}" data-target="${a.target_hours}">استكمال الساعات القديمة</button>`;
+   else html='<span class="hh140-wait">يُستكمل من طلب الخروج</span>';
+   if(action.innerHTML!==html)action.innerHTML=html;
   });
- }catch(e){console.warn('housing evidence v140',e)}finally{busy=false}
+ }catch(e){console.warn('housing evidence v157',e)}finally{busy=false}
 }
 async function completeLegacy(id,target){
  const v=prompt(`السجل قديم والإثبات مرفوع بالفعل.\nأدخل الساعات الفعلية للمندوب.\nالتارجت المطلوب: ${target} ساعة`);
@@ -41,14 +44,19 @@ async function completeLegacy(id,target){
  try{
   const res=await api('rpc/housing_set_actual_hours',{method:'POST',body:JSON.stringify({p_assessment_id:id,p_actual_hours:n,p_source:'LEGACY_ADMIN_COMPLETION'})});
   const a=Array.isArray(res)?res[0]:res;
-  if(a?.target_met)toast(`تم الاستكمال ✅ التارجت متحقق ولا يوجد خصم`);
+  if(a?.target_met)toast('تم الاستكمال ✅ التارجت متحقق ولا يوجد خصم');
   else toast(`تم الاستكمال ✅ قيمة الخصم: ${Number(a?.deduction_amount||0).toFixed(2)} جنيه`);
   if(typeof window.refreshAll==='function')await window.refreshAll();
+  setTimeout(decorate,160);
  }catch(e){toast(e.message||'تعذر استكمال الساعات',true)}
 }
-document.addEventListener('click',e=>{const b=e.target instanceof Element?e.target.closest('[data-hh140-hours]'):null;if(!b)return;e.preventDefault();e.stopPropagation();completeLegacy(b.dataset.hh140Hours,b.dataset.target)},true);
-const obs=new MutationObserver(()=>setTimeout(decorate,60));
-function boot(){const root=document.getElementById('hh132Body');if(root){obs.observe(root,{childList:true,subtree:true});decorate()}else setTimeout(boot,250)}
-boot();
+function schedule(){setTimeout(decorate,100);setTimeout(decorate,350)}
+document.addEventListener('click',e=>{
+ const t=e.target instanceof Element?e.target:null;if(!t)return;
+ const b=t.closest('[data-hh140-hours]');if(b){e.preventDefault();e.stopPropagation();completeLegacy(b.dataset.hh140Hours,b.dataset.target);return}
+ if(t.closest('[data-hht]'))schedule();
+},true);
+const prevRefresh=window.refreshAll;if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);schedule();return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(decorate,400);setTimeout(decorate,1000)},{once:true});else{setTimeout(decorate,300);setTimeout(decorate,850)}
 })();
 </script>
