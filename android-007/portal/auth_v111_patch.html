@@ -11,11 +11,10 @@
 
 <style id="authV111Styles">
 .auth-recovery-note{margin:12px 0 16px;padding:12px 14px;border-radius:13px;background:#102238;border:1px solid #2a3f5b;color:#c7d3e0;line-height:1.8;font-size:13px}.auth-recovery-note.bad{background:#351820;border-color:#71313d;color:#ffc5cc}.auth-recovery-note.ok{background:#123328;border-color:#285a45;color:#a6e8c2}.auth-recovery-note b{color:#f1cf79}.auth-recovery-success{display:grid;gap:12px;text-align:center}.auth-recovery-success .checkmark{width:64px;height:64px;border-radius:18px;margin:auto;display:grid;place-items:center;background:#173c2d;color:#91e2b4;font-size:30px;border:1px solid #2d6b50}
-/* Hard-disable every obsolete housing surface. v1.3.2 creates its own IDs. */
 #housingResidentModal,#housingPaymentModal,#housingUnitModal,#sec-housing,#h130RequestModal,#h130UnitModal,#h130HoursModal,#sec-housing130,#hh131Modal,#sec-hh131{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
 
-<script id="legacyHousingGuardV132">
+<script id="legacyHousingGuardV132" data-version="1.5.7">
 (function(){
   const OLD_IDS=['housingResidentModal','housingPaymentModal','housingUnitModal','sec-housing','h130RequestModal','h130UnitModal','h130HoursModal','sec-housing130','hh131Modal','sec-hh131'];
   function oldText(el){return /إضافة ساكن|نظام السكن|المساهمة الشهرية|إدارة الشقق والسكان والمصروفات/.test(String(el?.textContent||''))}
@@ -29,17 +28,8 @@
     }
   }
   purge();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',purge,{once:true});
-  const observer=new MutationObserver(()=>purge());
-  const start=()=>{if(document.body)observer.observe(document.body,{childList:true,subtree:true});else setTimeout(start,50)};start();
-  const timer=setInterval(()=>{
-    purge();
-    if(document.getElementById('hh132Script')){
-      setTimeout(()=>{purge();observer.disconnect()},2500);
-      clearInterval(timer);
-    }
-  },120);
-  setTimeout(()=>{clearInterval(timer);observer.disconnect();purge()},15000);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{purge();setTimeout(purge,300)},{once:true});
+  else setTimeout(purge,0);
   window.__purgeLegacyHousing007=purge;
 })();
 </script>
