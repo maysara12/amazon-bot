@@ -157,10 +157,34 @@ jobs:
         run: |
           set -euo pipefail
           KEYSTORE="$RUNNER_TEMP/007-upload.jks"
-          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+
+          # GitHub secret paste boxes may preserve a trailing CR/LF. Normalize them
+          # without changing the actual keystore bytes or intended passwords.
+          CLEAN_B64="$(printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | tr -d '[:space:]')"
+          CLEAN_STORE_PASSWORD="$(printf '%s' "$ANDROID_UPLOAD_STORE_PASSWORD" | tr -d '\r\n')"
+          CLEAN_KEY_ALIAS="$(printf '%s' "$ANDROID_UPLOAD_KEY_ALIAS" | tr -d '\r\n')"
+          CLEAN_KEY_PASSWORD="$(printf '%s' "$ANDROID_UPLOAD_KEY_PASSWORD" | tr -d '\r\n')"
+
+          printf '%s' "$CLEAN_B64" | base64 --decode > "$KEYSTORE"
           chmod 600 "$KEYSTORE"
+
+          keytool -list \
+            -keystore "$KEYSTORE" \
+            -storepass "$CLEAN_STORE_PASSWORD" \
+            -alias "$CLEAN_KEY_ALIAS" >/dev/null
+
           echo "ANDROID_UPLOAD_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
-          keytool -list -keystore "$KEYSTORE" -storepass "$ANDROID_UPLOAD_STORE_PASSWORD" -alias "$ANDROID_UPLOAD_KEY_ALIAS" >/dev/null
+          {
+            echo 'ANDROID_UPLOAD_STORE_PASSWORD<<__007_STORE__'
+            printf '%s\n' "$CLEAN_STORE_PASSWORD"
+            echo '__007_STORE__'
+            echo 'ANDROID_UPLOAD_KEY_ALIAS<<__007_ALIAS__'
+            printf '%s\n' "$CLEAN_KEY_ALIAS"
+            echo '__007_ALIAS__'
+            echo 'ANDROID_UPLOAD_KEY_PASSWORD<<__007_KEY__'
+            printf '%s\n' "$CLEAN_KEY_PASSWORD"
+            echo '__007_KEY__'
+          } >> "$GITHUB_ENV"
 
       - name: Build signed release AAB
         working-directory: android-007
