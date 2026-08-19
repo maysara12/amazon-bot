@@ -9,14 +9,42 @@
 #hh141BillingNote .example{display:block;margin-top:3px;color:#8397ae}
 @media(max-width:720px){#hh132ReqModal .hh132-form-grid{grid-template-columns:1fr!important;gap:11px}#hh132ReqModal .field>.input{min-height:50px}#hh141BillingNote{font-size:11.5px;padding:9px 10px}}
 </style>
-<script id="housingCheckinLayoutV141Script" data-version="1.5.7">
+<script id="housingCheckinLayoutV141Script" data-version="1.5.8">
 (function(){
 'use strict';
-if(window.__housingCheckinLayoutV157)return;window.__housingCheckinLayoutV157=true;
+if(window.__housingCheckinLayoutV158)return;window.__housingCheckinLayoutV158=true;
 let busy=false;
+function repairCoreFields(){
+  const unitModal=document.getElementById('hh132UnitModal');
+  if(unitModal&&!document.getElementById('hh132UnitRent')){
+    const field=[...unitModal.querySelectorAll('.field')].find(f=>f.querySelector('label')?.textContent.trim()==='الإيجار الشهري');
+    let input=field?.querySelector('input');
+    if(!input&&field){input=document.createElement('input');field.appendChild(input)}
+    if(input){input.id='hh132UnitRent';input.className='input';input.type='number';input.min='0';input.step='0.01';if(input.value==='')input.value='0'}
+  }
+  const proofModal=document.getElementById('hh132ProofModal');
+  const proofCard=proofModal?.querySelector('.modal-card');
+  if(proofCard&&!document.getElementById('hh132ProofAssessment')){
+    const h=document.createElement('input');h.type='hidden';h.id='hh132ProofAssessment';proofCard.prepend(h);
+  }
+  if(proofCard&&!document.getElementById('hh132ProofPeriod')){
+    const info=document.createElement('div');info.id='hh132ProofPeriod';info.className='hh132-evidence-required';
+    proofCard.querySelector('.hh132-upload-box')?.insertAdjacentElement('beforebegin',info);
+  }
+  const hoursModal=document.getElementById('hh132HoursModal');
+  const hoursCard=hoursModal?.querySelector('.modal-card');
+  if(hoursCard&&!document.getElementById('hh132HoursAssessment')){
+    const h=document.createElement('input');h.type='hidden';h.id='hh132HoursAssessment';hoursCard.prepend(h);
+  }
+  if(hoursCard&&!document.getElementById('hh132HoursInfo')){
+    const info=document.createElement('div');info.id='hh132HoursInfo';info.className='hh132-evidence-required';
+    const field=hoursCard.querySelector('.field');if(field)field.insertAdjacentElement('beforebegin',info);else hoursCard.appendChild(info);
+  }
+}
 function tidy(){
  if(busy)return;busy=true;
  try{
+  repairCoreFields();
   const modal=document.getElementById('hh132ReqModal');
   const billing=document.getElementById('hh135BillingField');
   const date=document.getElementById('hh132ReqDate');
@@ -44,12 +72,13 @@ function tidy(){
 function schedule(){setTimeout(tidy,40);setTimeout(tidy,180)}
 document.addEventListener('click',e=>{
  const t=e.target instanceof Element?e.target:null;if(!t)return;
+ if(t.closest('[data-add-unit],[data-edit-unit],[data-proof],[data-hours]'))repairCoreFields();
  if(t.closest('[data-in],[data-out],[data-hht="requests"],#hh132ReqSave'))schedule();
 },true);
 document.addEventListener('change',e=>{
  const t=e.target instanceof Element?e.target:null;
  if(t?.matches('#hh132ReqType,#hh132ReqDate,#hh135BillingStart'))schedule();
 },true);
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(tidy,200);setTimeout(tidy,650)},{once:true});else{setTimeout(tidy,120);setTimeout(tidy,500)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(tidy,120);setTimeout(tidy,400);setTimeout(tidy,900)},{once:true});else{setTimeout(tidy,80);setTimeout(tidy,300);setTimeout(tidy,800)}
 })();
 </script>
