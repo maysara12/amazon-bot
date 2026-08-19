@@ -1,11 +1,29 @@
 <style id="appUiV136Style">
-html.app-android .fab{display:none!important}
+.fab{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
-<script id="appUiV136Script">
+<script id="appUiV136Script" data-version="1.6.0">
 (function(){
+  'use strict';
+  function removeLegacyFab(){
+    document.querySelectorAll('.fab').forEach(el=>el.remove());
+  }
   try{
     const p=new URLSearchParams(location.search);
-    if(p.get('app')==='android') document.documentElement.classList.add('app-android');
+    if(p.get('app')==='android')document.documentElement.classList.add('app-android');
   }catch(_){ }
+  removeLegacyFab();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',removeLegacyFab,{once:true});
+  document.addEventListener('click',e=>{
+    const t=e.target instanceof Element?e.target:null;
+    if(t?.closest('.fab')){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}
+  },true);
+  const prevRefresh=window.refreshAll;
+  if(typeof prevRefresh==='function')window.refreshAll=async function(){
+    const r=await prevRefresh.apply(this,arguments);
+    removeLegacyFab();
+    return r;
+  };
+  setTimeout(removeLegacyFab,250);
+  setTimeout(removeLegacyFab,900);
 })();
 </script>
