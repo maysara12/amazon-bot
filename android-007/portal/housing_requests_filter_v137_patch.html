@@ -6,61 +6,55 @@
 .hh137-filterbar small{display:flex;align-items:center;color:#7f93aa}
 @media(max-width:720px){.hh137-filterbar{gap:6px}.hh137-filterbar button{flex:1;min-width:42%;white-space:nowrap}.hh137-filterbar button.clean{margin-inline-start:0}.hh137-filterbar small{width:100%;justify-content:center;margin:2px 0 0}}
 </style>
-<script id="housingRequestsFilterV137Script">
+<script id="housingRequestsFilterV137Script" data-version="1.5.7">
 (function(){
-  'use strict';
-  const PREF='007_housing_requests_clean_v1';
-  let mode='PENDING',busy=false;
-  const labelMap={PENDING:'المعلقة فقط',IN:'دخول معلّق',OUT:'خروج معلّق',ARCHIVE:'الأرشيف'};
-  function requestPanel(){
-    const root=document.getElementById('hh132Body');
-    if(!root)return null;
-    return [...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='طلبات الدخول والخروج')||null;
+'use strict';
+if(window.__housingRequestsFilterV157)return;window.__housingRequestsFilterV157=true;
+const PREF='007_housing_requests_clean_v1';
+let mode='PENDING',busy=false;
+const labelMap={PENDING:'المعلقة فقط',IN:'دخول معلّق',OUT:'خروج معلّق',ARCHIVE:'الأرشيف'};
+function requestPanel(){const root=document.getElementById('hh132Body');if(!root)return null;return [...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='طلبات الدخول والخروج')||null}
+function cardMeta(card){
+ const txt=card.textContent||'';
+ const type=txt.includes('طلب دخول')?'IN':txt.includes('طلب خروج')?'OUT':'';
+ const pending=txt.includes('قيد المراجعة');
+ const approved=txt.includes('تم الاعتماد'),rejected=txt.includes('مرفوض'),cancelled=txt.includes('ملغي');
+ return {type,pending,closed:approved||rejected||cancelled};
+}
+function cleanCompleted(){
+ try{localStorage.setItem(PREF,'1')}catch(_){}
+ mode='PENDING';const panel=requestPanel(),cards=panel?[...panel.querySelectorAll(':scope > .hh132-card')]:[];
+ const n=cards.filter(c=>cardMeta(c).closed).length;apply();
+ if(typeof toast==='function')toast(n?`تم تنظيف ${n} طلب مكتمل ✅ — محفوظين في الأرشيف`:'القائمة نظيفة بالفعل ✅');
+}
+function apply(){
+ if(busy)return;busy=true;
+ try{
+  const panel=requestPanel();if(!panel)return;
+  const cards=[...panel.querySelectorAll(':scope > .hh132-card')];
+  let bar=panel.querySelector(':scope > .hh137-filterbar');
+  if(!bar){
+   bar=document.createElement('div');bar.className='hh137-filterbar';
+   bar.innerHTML='<button data-hh137="PENDING">المعلقة فقط</button><button data-hh137="IN">دخول</button><button data-hh137="OUT">خروج</button><button data-hh137="ARCHIVE">الأرشيف</button><button class="clean" data-hh137-clean>✓ تنظيف المكتمل</button><small data-hh137-count></small>';
+   panel.querySelector('.panel-head')?.insertAdjacentElement('afterend',bar);
+   bar.querySelectorAll('[data-hh137]').forEach(b=>b.onclick=()=>{mode=b.dataset.hh137;apply()});
+   bar.querySelector('[data-hh137-clean]').onclick=cleanCompleted;
   }
-  function cardMeta(card){
-    const txt=card.textContent||'';
-    const type=txt.includes('طلب دخول')?'IN':txt.includes('طلب خروج')?'OUT':'';
-    const pending=txt.includes('قيد المراجعة');
-    const approved=txt.includes('تم الاعتماد');
-    const rejected=txt.includes('مرفوض');
-    const cancelled=txt.includes('ملغي');
-    return {type,pending,closed:approved||rejected||cancelled};
-  }
-  function cleanCompleted(){
-    try{localStorage.setItem(PREF,'1')}catch(_){}
-    mode='PENDING';
-    const panel=requestPanel(),cards=panel?[...panel.querySelectorAll(':scope > .hh132-card')]:[];
-    const n=cards.filter(c=>cardMeta(c).closed).length;
-    apply();
-    if(typeof toast==='function')toast(n?`تم تنظيف ${n} طلب مكتمل ✅ — محفوظين في الأرشيف`:'القائمة نظيفة بالفعل ✅');
-  }
-  function apply(){
-    if(busy)return;busy=true;
-    try{
-      const panel=requestPanel();if(!panel)return;
-      const cards=[...panel.querySelectorAll(':scope > .hh132-card')];
-      let bar=panel.querySelector(':scope > .hh137-filterbar');
-      if(!bar){
-        bar=document.createElement('div');bar.className='hh137-filterbar';
-        bar.innerHTML='<button data-hh137="PENDING">المعلقة فقط</button><button data-hh137="IN">دخول</button><button data-hh137="OUT">خروج</button><button data-hh137="ARCHIVE">الأرشيف</button><button class="clean" data-hh137-clean>✓ تنظيف المكتمل</button><small data-hh137-count></small>';
-        panel.querySelector('.panel-head')?.insertAdjacentElement('afterend',bar);
-        bar.querySelectorAll('[data-hh137]').forEach(b=>b.onclick=()=>{mode=b.dataset.hh137;apply()});
-        bar.querySelector('[data-hh137-clean]').onclick=cleanCompleted;
-      }
-      let shown=0;
-      cards.forEach(card=>{
-        const m=cardMeta(card);
-        const show=(mode==='PENDING'&&m.pending)||(mode==='IN'&&m.pending&&m.type==='IN')||(mode==='OUT'&&m.pending&&m.type==='OUT')||(mode==='ARCHIVE'&&m.closed);
-        card.style.display=show?'':'none';if(show)shown++;
-      });
-      bar.querySelectorAll('[data-hh137]').forEach(b=>b.classList.toggle('active',b.dataset.hh137===mode));
-      const count=bar.querySelector('[data-hh137-count]');if(count)count.textContent=`${labelMap[mode]}: ${shown}`;
-      let empty=panel.querySelector(':scope > .hh137-empty');
-      if(!shown&&cards.length){if(!empty){empty=document.createElement('div');empty.className='empty hh137-empty';panel.appendChild(empty)}empty.textContent=mode==='ARCHIVE'?'لا توجد طلبات مكتملة في الأرشيف':'لا توجد طلبات معلقة'}else empty?.remove();
-    }finally{busy=false}
-  }
-  const obs=new MutationObserver(()=>setTimeout(apply,0));
-  function boot(){const root=document.getElementById('hh132Body');if(root){obs.observe(root,{childList:true,subtree:true});apply()}else setTimeout(boot,300)}
-  boot();
+  let shown=0;
+  cards.forEach(card=>{
+   const m=cardMeta(card);
+   const show=(mode==='PENDING'&&m.pending)||(mode==='IN'&&m.pending&&m.type==='IN')||(mode==='OUT'&&m.pending&&m.type==='OUT')||(mode==='ARCHIVE'&&m.closed);
+   const wanted=show?'':'none';if(card.style.display!==wanted)card.style.display=wanted;if(show)shown++;
+  });
+  bar.querySelectorAll('[data-hh137]').forEach(b=>b.classList.toggle('active',b.dataset.hh137===mode));
+  const count=bar.querySelector('[data-hh137-count]'),txt=`${labelMap[mode]}: ${shown}`;if(count&&count.textContent!==txt)count.textContent=txt;
+  let empty=panel.querySelector(':scope > .hh137-empty');
+  if(!shown&&cards.length){if(!empty){empty=document.createElement('div');empty.className='empty hh137-empty';panel.appendChild(empty)}const t=mode==='ARCHIVE'?'لا توجد طلبات مكتملة في الأرشيف':'لا توجد طلبات معلقة';if(empty.textContent!==t)empty.textContent=t}else empty?.remove();
+ }finally{busy=false}
+}
+function schedule(){setTimeout(apply,80);setTimeout(apply,300)}
+document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(t?.closest('[data-hht]'))schedule()},true);
+const prevRefresh=window.refreshAll;if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);schedule();return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(apply,350);setTimeout(apply,900)},{once:true});else{setTimeout(apply,250);setTimeout(apply,750)}
 })();
 </script>
