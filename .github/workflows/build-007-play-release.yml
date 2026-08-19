@@ -2,6 +2,10 @@ name: Build 007 Operations Google Play AAB
 
 on:
   workflow_dispatch:
+  push:
+    branches: [007-operations-android]
+    paths:
+      - 'android-007/PLAY_RELEASE_TRIGGER.txt'
 
 permissions:
   contents: read
