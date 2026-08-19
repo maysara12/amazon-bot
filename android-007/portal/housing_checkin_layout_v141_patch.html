@@ -7,13 +7,18 @@
 #hh141BillingNote{margin:12px 0 2px;padding:10px 12px;border:1px solid #5f5130;border-right:3px solid #d8b25c;border-radius:11px;background:#0d1d30;color:#aebed0;font-size:12px;line-height:1.7}
 #hh141BillingNote b{color:#f1cf79}
 #hh141BillingNote .example{display:block;margin-top:3px;color:#8397ae}
-@media(max-width:720px){#hh132ReqModal .hh132-form-grid{grid-template-columns:1fr!important;gap:11px}#hh132ReqModal .field>.input{min-height:50px}#hh141BillingNote{font-size:11.5px;padding:9px 10px}}
+#hh158UnitModal .hh158-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+#hh158UnitModal .hh158-wide{grid-column:1/-1}
+@media(max-width:720px){#hh132ReqModal .hh132-form-grid,#hh158UnitModal .hh158-grid{grid-template-columns:1fr!important;gap:11px}#hh132ReqModal .field>.input{min-height:50px}#hh141BillingNote{font-size:11.5px;padding:9px 10px}#hh158UnitModal .hh158-wide{grid-column:auto}}
 </style>
-<script id="housingCheckinLayoutV141Script" data-version="1.5.8">
+<script id="housingCheckinLayoutV141Script" data-version="1.5.9">
 (function(){
 'use strict';
-if(window.__housingCheckinLayoutV158)return;window.__housingCheckinLayoutV158=true;
-let busy=false;
+if(window.__housingCheckinLayoutV159)return;window.__housingCheckinLayoutV159=true;
+let busy=false,unitSaving=false;
+function currentMe(){try{if(typeof me!=='undefined'&&me)return me}catch(_){}return window.me||null}
+function currentZones(){try{if(typeof zones!=='undefined'&&Array.isArray(zones))return zones}catch(_){}return Array.isArray(window.zones)?window.zones:[]}
+function hurghada(){return currentZones().find(x=>x.code==='HURGHADA'||x.name_ar==='الغردقة'||String(x.name_en||'').toLowerCase()==='hurghada')}
 function repairCoreFields(){
   const unitModal=document.getElementById('hh132UnitModal');
   if(unitModal&&!document.getElementById('hh132UnitRent')){
@@ -24,61 +29,86 @@ function repairCoreFields(){
   }
   const proofModal=document.getElementById('hh132ProofModal');
   const proofCard=proofModal?.querySelector('.modal-card');
-  if(proofCard&&!document.getElementById('hh132ProofAssessment')){
-    const h=document.createElement('input');h.type='hidden';h.id='hh132ProofAssessment';proofCard.prepend(h);
-  }
-  if(proofCard&&!document.getElementById('hh132ProofPeriod')){
-    const info=document.createElement('div');info.id='hh132ProofPeriod';info.className='hh132-evidence-required';
-    proofCard.querySelector('.hh132-upload-box')?.insertAdjacentElement('beforebegin',info);
-  }
+  if(proofCard&&!document.getElementById('hh132ProofAssessment')){const h=document.createElement('input');h.type='hidden';h.id='hh132ProofAssessment';proofCard.prepend(h)}
+  if(proofCard&&!document.getElementById('hh132ProofPeriod')){const info=document.createElement('div');info.id='hh132ProofPeriod';info.className='hh132-evidence-required';proofCard.querySelector('.hh132-upload-box')?.insertAdjacentElement('beforebegin',info)}
   const hoursModal=document.getElementById('hh132HoursModal');
   const hoursCard=hoursModal?.querySelector('.modal-card');
-  if(hoursCard&&!document.getElementById('hh132HoursAssessment')){
-    const h=document.createElement('input');h.type='hidden';h.id='hh132HoursAssessment';hoursCard.prepend(h);
-  }
-  if(hoursCard&&!document.getElementById('hh132HoursInfo')){
-    const info=document.createElement('div');info.id='hh132HoursInfo';info.className='hh132-evidence-required';
-    const field=hoursCard.querySelector('.field');if(field)field.insertAdjacentElement('beforebegin',info);else hoursCard.appendChild(info);
-  }
+  if(hoursCard&&!document.getElementById('hh132HoursAssessment')){const h=document.createElement('input');h.type='hidden';h.id='hh132HoursAssessment';hoursCard.prepend(h)}
+  if(hoursCard&&!document.getElementById('hh132HoursInfo')){const info=document.createElement('div');info.id='hh132HoursInfo';info.className='hh132-evidence-required';const field=hoursCard.querySelector('.field');if(field)field.insertAdjacentElement('beforebegin',info);else hoursCard.appendChild(info)}
+}
+function ensureUnitModal(){
+ if(document.getElementById('hh158UnitModal'))return;
+ const w=document.createElement('div');
+ w.innerHTML=`<div id="hh158UnitModal" class="modal"><div class="modal-card"><div class="modal-head"><h3 id="hh158UnitTitle">إضافة شقة</h3><button class="close" data-hh158-close>×</button></div><input id="hh158UnitId" type="hidden"><div class="hh158-grid"><div class="field"><label>اسم الشقة</label><input id="hh158UnitName" class="input"></div><div class="field"><label>الكود</label><input id="hh158UnitCode" class="input"></div><div class="field"><label>السعة</label><input id="hh158UnitCapacity" class="input" type="number" min="1" value="10"></div><div class="field"><label>الإيجار الشهري</label><input id="hh158UnitRent" class="input" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>اسم المالك</label><input id="hh158Landlord" class="input"></div><div class="field"><label>تليفون المالك</label><input id="hh158LandlordPhone" class="input"></div><div class="field hh158-wide"><label>العنوان</label><input id="hh158UnitAddress" class="input"></div></div><button id="hh158UnitSave" class="btn btn-primary wide" type="button">حفظ الشقة</button></div></div>`;
+ document.body.appendChild(w.firstElementChild);
+ document.querySelector('[data-hh158-close]').onclick=()=>document.getElementById('hh158UnitModal').classList.remove('open');
+ document.getElementById('hh158UnitSave').onclick=saveManagedUnit;
+}
+async function openManagedUnit(id=''){
+ ensureUnitModal();
+ const z=hurghada();if(!z)return toast('زون الغردقة غير محمل بعد',true);
+ let u=null;
+ if(id){try{const rows=await api('housing_units?select=*&id=eq.'+encodeURIComponent(id)+'&limit=1');u=Array.isArray(rows)?rows[0]:null}catch(e){return toast(e.message||'تعذر تحميل بيانات الشقة',true)}}
+ document.getElementById('hh158UnitId').value=id||'';
+ document.getElementById('hh158UnitTitle').textContent=u?'تعديل الشقة':'إضافة شقة';
+ document.getElementById('hh158UnitName').value=u?.name||'';
+ document.getElementById('hh158UnitCode').value=u?.code||'';
+ document.getElementById('hh158UnitCapacity').value=u?.capacity||10;
+ document.getElementById('hh158UnitRent').value=u?.monthly_rent||0;
+ document.getElementById('hh158Landlord').value=u?.landlord_name||'';
+ document.getElementById('hh158LandlordPhone').value=u?.landlord_phone||'';
+ document.getElementById('hh158UnitAddress').value=u?.address||'';
+ document.getElementById('hh158UnitModal').classList.add('open');
+}
+async function saveManagedUnit(){
+ if(unitSaving)return;
+ const z=hurghada(),m=currentMe();if(!z||!m)return toast('بيانات الحساب أو زون الغردقة غير جاهزة',true);
+ const id=document.getElementById('hh158UnitId').value;
+ const name=document.getElementById('hh158UnitName').value.trim();
+ const code=document.getElementById('hh158UnitCode').value.trim();
+ const capacity=Number(document.getElementById('hh158UnitCapacity').value||0);
+ const monthly_rent=Number(document.getElementById('hh158UnitRent').value||0);
+ const landlord_name=document.getElementById('hh158Landlord').value.trim();
+ const landlord_phone=document.getElementById('hh158LandlordPhone').value.trim();
+ const address=document.getElementById('hh158UnitAddress').value.trim();
+ if(!name)return toast('اكتب اسم الشقة',true);
+ if(!Number.isFinite(capacity)||capacity<1)return toast('السعة لازم تكون 1 أو أكثر',true);
+ if(!Number.isFinite(monthly_rent)||monthly_rent<0)return toast('راجع قيمة الإيجار',true);
+ const body={name,code:code||null,capacity,monthly_rent,landlord_name:landlord_name||null,landlord_phone:landlord_phone||null,address:address||null};
+ if(!id)Object.assign(body,{zone_id:z.id,unit_type:'APARTMENT',status:'ACTIVE',created_by:m.id});
+ unitSaving=true;const btn=document.getElementById('hh158UnitSave');btn.disabled=true;
+ try{
+   if(id)await api('housing_units?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});
+   else await api('housing_units',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});
+   document.getElementById('hh158UnitModal').classList.remove('open');toast('تم حفظ الشقة ✅');
+   if(typeof window.refreshAll==='function')await window.refreshAll();
+   setTimeout(()=>document.querySelector('[data-hht="units"]')?.click(),120);
+ }catch(e){toast(e.message||'تعذر حفظ الشقة',true)}finally{unitSaving=false;btn.disabled=false}
 }
 function tidy(){
  if(busy)return;busy=true;
  try{
   repairCoreFields();
-  const modal=document.getElementById('hh132ReqModal');
-  const billing=document.getElementById('hh135BillingField');
-  const date=document.getElementById('hh132ReqDate');
+  const modal=document.getElementById('hh132ReqModal'),billing=document.getElementById('hh135BillingField'),date=document.getElementById('hh132ReqDate');
   if(!modal||!billing||!date)return;
-  const grid=date.closest('.hh132-form-grid');
-  if(!grid)return;
-  const oldInfo=billing.querySelector('.hh135-info');
-  if(oldInfo)oldInfo.remove();
+  const grid=date.closest('.hh132-form-grid');if(!grid)return;
+  const oldInfo=billing.querySelector('.hh135-info');if(oldInfo)oldInfo.remove();
   let note=document.getElementById('hh141BillingNote');
-  if(!note){
-    note=document.createElement('div');
-    note.id='hh141BillingNote';
-    note.innerHTML='<b>ملاحظة:</b> لو فيه شهور قديمة متسوية بالفعل، اختار في «بداية المحاسبة» أول يوم غير متسوي.<span class="example">مثال: يونيو ويوليو متسويين → بداية المحاسبة 01/08.</span>';
-    grid.insertAdjacentElement('afterend',note);
-  }
-  const type=document.getElementById('hh132ReqType')?.value||'';
-  const wanted=(type==='CHECK_IN'&&billing.style.display!=='none')?'block':'none';
-  if(note.style.display!==wanted)note.style.display=wanted;
-  const dLabel=date.closest('.field')?.querySelector('label');
-  if(type==='CHECK_IN'&&dLabel&&dLabel.textContent!=='تاريخ الدخول الفعلي')dLabel.textContent='تاريخ الدخول الفعلي';
-  const bLabel=billing.querySelector('label');
-  if(bLabel&&bLabel.textContent!=='بداية المحاسبة داخل النظام')bLabel.textContent='بداية المحاسبة داخل النظام';
+  if(!note){note=document.createElement('div');note.id='hh141BillingNote';note.innerHTML='<b>ملاحظة:</b> لو فيه شهور قديمة متسوية بالفعل، اختار في «بداية المحاسبة» أول يوم غير متسوي.<span class="example">مثال: يونيو ويوليو متسويين → بداية المحاسبة 01/08.</span>';grid.insertAdjacentElement('afterend',note)}
+  const type=document.getElementById('hh132ReqType')?.value||'',wanted=(type==='CHECK_IN'&&billing.style.display!=='none')?'block':'none';if(note.style.display!==wanted)note.style.display=wanted;
+  const dLabel=date.closest('.field')?.querySelector('label');if(type==='CHECK_IN'&&dLabel&&dLabel.textContent!=='تاريخ الدخول الفعلي')dLabel.textContent='تاريخ الدخول الفعلي';
+  const bLabel=billing.querySelector('label');if(bLabel&&bLabel.textContent!=='بداية المحاسبة داخل النظام')bLabel.textContent='بداية المحاسبة داخل النظام';
  }finally{busy=false}
 }
 function schedule(){setTimeout(tidy,40);setTimeout(tidy,180)}
 document.addEventListener('click',e=>{
  const t=e.target instanceof Element?e.target:null;if(!t)return;
- if(t.closest('[data-add-unit],[data-edit-unit],[data-proof],[data-hours]'))repairCoreFields();
+ const add=t.closest('[data-add-unit]'),edit=t.closest('[data-edit-unit]');
+ if(add||edit){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openManagedUnit(edit?.dataset.editUnit||'');return}
+ if(t.closest('[data-proof],[data-hours]'))repairCoreFields();
  if(t.closest('[data-in],[data-out],[data-hht="requests"],#hh132ReqSave'))schedule();
 },true);
-document.addEventListener('change',e=>{
- const t=e.target instanceof Element?e.target:null;
- if(t?.matches('#hh132ReqType,#hh132ReqDate,#hh135BillingStart'))schedule();
-},true);
+document.addEventListener('change',e=>{const t=e.target instanceof Element?e.target:null;if(t?.matches('#hh132ReqType,#hh132ReqDate,#hh135BillingStart'))schedule()},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(tidy,120);setTimeout(tidy,400);setTimeout(tidy,900)},{once:true});else{setTimeout(tidy,80);setTimeout(tidy,300);setTimeout(tidy,800)}
 })();
 </script>
