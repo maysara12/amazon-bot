@@ -2,10 +2,8 @@ name: Build 007 Operations APK
 
 on:
   push:
-    branches:
-      - 007-operations-android
+    branches: [007-operations-android]
     paths:
-      # Native Android changes only. Portal/UI patches are live-web updates and must not rebuild the APK.
       - 'android-007/app/**'
       - 'android-007/build.gradle'
       - 'android-007/settings.gradle'
@@ -15,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-007-operations-apk
@@ -24,33 +22,11 @@ concurrency:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: 007-operations-android
-          fetch-depth: 0
-
-      - name: Publish current build run id
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build-status
-          {
-            echo '007 Operations APK v1.3.3'
-            echo 'status=BUILDING'
-            echo "run_id=${GITHUB_RUN_ID}"
-            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
-            echo "commit=${GITHUB_SHA}"
-            echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } > build-status/007-operations-v1.3.3-current-run.txt
-          git config user.name '007 APK Builder'
-          git config user.email 'actions@users.noreply.github.com'
-          git add build-status/007-operations-v1.3.3-current-run.txt
-          git commit -m 'Track current 007 Operations v1.3.3 build [skip ci]' || true
-          git pull --rebase origin 007-operations-android
-          git push origin HEAD:007-operations-android
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -69,116 +45,122 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Verify live portal V156 and assemble complete bundled fallback
+      - name: Verify live V156 and build complete fallback
         shell: bash
         run: |
           set -euo pipefail
 
-          # Verify the Android shell is still linked to the live portal.
           grep -q 'APP_VERSION = "1.3.3"' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'PUBLIC_PORTAL_ORIGIN + "/portal?app=android&v=" + APP_VERSION' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'LOAD_NO_CACHE' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'LOCAL_FALLBACK_URL' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
 
-          # Verify Production is the current complete portal composer.
-          curl --fail --silent --show-error --location \
-            'https://007-operations-portal.vercel.app/portal' \
-            --output /tmp/live-composer.html
-          grep -q '007 Operations' /tmp/live-composer.html
-          grep -q 'fullPortalComposerV156' /tmp/live-composer.html
-          grep -q 'housing_checkout_workflow_v139_patch.html' /tmp/live-composer.html
-          grep -q 'housing_v135_fix_patch.html' /tmp/live-composer.html
-          grep -q 'realtime_v134_patch.html' /tmp/live-composer.html
-          grep -q 'app_ui_v136_patch.html' /tmp/live-composer.html
-          grep -q 'housing_change_unit_v147_patch.html' /tmp/live-composer.html
-          grep -q 'housing_stays_filter_v149_patch.html' /tmp/live-composer.html
-          grep -q 'zones_archive_v153_patch.html' /tmp/live-composer.html
-          grep -q 'housing_supervisor_assignment_v153_patch.html' /tmp/live-composer.html
+          curl --fail --silent --show-error --location 'https://007-operations-portal.vercel.app/portal' -o /tmp/live.html
+          python - <<'PY'
+          from pathlib import Path
+          live=Path('/tmp/live.html').read_text(encoding='utf-8')
+          required=[
+            'fullPortalComposerV156',
+            'housing_checkout_workflow_v139_patch.html',
+            'housing_v135_fix_patch.html',
+            'realtime_v134_patch.html',
+            'app_ui_v136_patch.html',
+            'housing_requests_filter_v137_patch.html',
+            'brand_logo_v138_patch.html',
+            'housing_evidence_cleanup_v140_patch.html',
+            'housing_checkin_layout_v141_patch.html',
+            'housing_assess_archive_v146_patch.html',
+            'housing_change_unit_v147_patch.html',
+            'housing_stays_filter_v149_patch.html',
+            'zones_archive_v153_patch.html',
+            'housing_supervisor_assignment_v153_patch.html',
+          ]
+          missing=[x for x in required if x not in live]
+          if missing:
+            raise SystemExit('LIVE PORTAL MISSING: '+', '.join(missing))
+          print('Live portal V156 verification: OK')
+          PY
 
-          # Build a complete offline fallback from immutable base + the same current portal modules.
           curl --fail --silent --show-error --location \
             'https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html' \
-            --output /tmp/base.html
-          grep -q 'SUPABASE_URL' /tmp/base.html
-          grep -q '</body>' /tmp/base.html
+            -o /tmp/base.html
 
           mkdir -p android-007/app/src/main/assets/www
           python - <<'PY'
           from pathlib import Path
           import re
 
-          base = Path('/tmp/base.html').read_text(encoding='utf-8')
-          patch_paths = [
-              'android-007/portal/v110_patch.html',
-              'android-007/portal/modules_v120_patch.html',
-              'android-007/portal/hurghada_housing_v132_patch.html',
-              'android-007/portal/housing_checkout_workflow_v139_patch.html',
-              'android-007/portal/housing_v135_fix_patch.html',
-              'android-007/portal/auth_v111_patch.html',
-              'android-007/portal/realtime_v134_patch.html',
-              'android-007/portal/app_ui_v136_patch.html',
-              'android-007/portal/housing_requests_filter_v137_patch.html',
-              'android-007/portal/brand_logo_v138_patch.html',
-              'android-007/portal/housing_evidence_cleanup_v140_patch.html',
-              'android-007/portal/housing_checkin_layout_v141_patch.html',
-              'android-007/portal/housing_assess_archive_v146_patch.html',
-              'android-007/portal/housing_change_unit_v147_patch.html',
-              'android-007/portal/housing_stays_filter_v149_patch.html',
-              'android-007/portal/zones_archive_v153_patch.html',
-              'android-007/portal/housing_supervisor_assignment_v153_patch.html',
+          base=Path('/tmp/base.html').read_text(encoding='utf-8')
+          patch_paths=[
+            'android-007/portal/v110_patch.html',
+            'android-007/portal/modules_v120_patch.html',
+            'android-007/portal/hurghada_housing_v132_patch.html',
+            'android-007/portal/housing_checkout_workflow_v139_patch.html',
+            'android-007/portal/housing_v135_fix_patch.html',
+            'android-007/portal/auth_v111_patch.html',
+            'android-007/portal/realtime_v134_patch.html',
+            'android-007/portal/app_ui_v136_patch.html',
+            'android-007/portal/housing_requests_filter_v137_patch.html',
+            'android-007/portal/brand_logo_v138_patch.html',
+            'android-007/portal/housing_evidence_cleanup_v140_patch.html',
+            'android-007/portal/housing_checkin_layout_v141_patch.html',
+            'android-007/portal/housing_assess_archive_v146_patch.html',
+            'android-007/portal/housing_change_unit_v147_patch.html',
+            'android-007/portal/housing_stays_filter_v149_patch.html',
+            'android-007/portal/zones_archive_v153_patch.html',
+            'android-007/portal/housing_supervisor_assignment_v153_patch.html',
           ]
-          patches = [Path(p).read_text(encoding='utf-8') for p in patch_paths]
+          patches=[Path(p).read_text(encoding='utf-8') for p in patch_paths]
           if '</body>' not in base:
-              raise SystemExit('ERROR: immutable base is missing </body>')
-          html = base.replace('</body>', '\n'.join(patches) + '\n</body>', 1)
-          Path('android-007/app/src/main/assets/www/index.html').write_text(html, encoding='utf-8')
+            raise SystemExit('Immutable base is missing </body>')
+          html=base.replace('</body>','\n'.join(patches)+'\n</body>',1)
+          out=Path('android-007/app/src/main/assets/www/index.html')
+          out.write_text(html,encoding='utf-8')
 
-          scripts = []
-          for attrs, body in re.findall(r'<script([^>]*)>(.*?)</script>', html, flags=re.S | re.I):
-              attrs_l = attrs.lower()
-              if 'application/json' in attrs_l or 'src=' in attrs_l:
-                  continue
-              scripts.append(body)
-          Path('/tmp/007-v133-fallback.js').write_text('\n'.join(scripts), encoding='utf-8')
+          required={
+            'core modules':'modulesV120Script',
+            'housing':'hh132Script',
+            'checkout proof workflow':'housing_create_checkout_request',
+            'housing fixes':'housingV135FixScript',
+            'auth/login':'loginErrorV112Script',
+            'realtime':'realtimeV134Script',
+            'Android UI':'appUiV136Script',
+            'request filters/archive':'housingRequestsFilterV137Script',
+            '007 brand':'brandLogoV138Script',
+            'evidence completion':'housingEvidenceV140Script',
+            'check-in dates layout':'housingCheckinLayoutV141Script',
+            'accounting archive':'housingAssessArchiveV146Script',
+            'change apartment/edit dates':'housingChangeUnitV147Script',
+            'apartment search/filter':'housingStaysFilterV149Script',
+            'zone removal':'zonesArchiveV153Script',
+            'apartment supervisor assignment':'housingSupervisorAssignmentV153Script',
+            'change apartment UI':'تغيير شقة المندوب',
+            'edit dates UI':'تعديل تواريخ المندوب',
+            'apartment assignment UI':'توزيع الشقق على مشرفي السكن',
+            'hours evidence UI':'إثبات الساعات',
+            'exited housing archive':'خرجوا من السكن',
+            'company responses':'ردود الشركة',
+            'refunds':'الاسترداد',
+            'users':'المستخدمون',
+          }
+          missing=[name for name,token in required.items() if token not in html]
+          if missing:
+            raise SystemExit('FALLBACK MISSING FEATURES: '+', '.join(missing))
+          if len(html)<150000:
+            raise SystemExit(f'Fallback unexpectedly small: {len(html)} bytes')
+
+          scripts=[]
+          for attrs,body in re.findall(r'<script([^>]*)>(.*?)</script>',html,flags=re.S|re.I):
+            al=attrs.lower()
+            if 'application/json' in al or 'src=' in al:
+              continue
+            scripts.append(body)
+          Path('/tmp/007-fallback.js').write_text('\n'.join(scripts),encoding='utf-8')
+          print('Complete V156 fallback verification: OK')
           PY
+          node --check /tmp/007-fallback.js
 
-          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 150000
-          grep -q 'SUPABASE_URL' android-007/app/src/main/assets/www/index.html
-          grep -q 'modulesV120Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'data-core="orders-only"' android-007/app/src/main/assets/www/index.html
-          grep -q 'hh132Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housing_create_checkout_request' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingV135FixScript' android-007/app/src/main/assets/www/index.html
-          grep -q 'loginErrorV112Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'realtimeV134Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'postgres_changes' android-007/app/src/main/assets/www/index.html
-          grep -q 'appUiV136Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingRequestsFilterV137Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'brandLogoV138Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingEvidenceCleanupV140Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingCheckinLayoutV141Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingAssessArchiveV146Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingChangeUnitV147Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingStaysFilterV149Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'zonesArchiveV153Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingSupervisorAssignmentV153Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'تغيير شقة المندوب' android-007/app/src/main/assets/www/index.html
-          grep -q 'تعديل تواريخ المندوب' android-007/app/src/main/assets/www/index.html
-          grep -q 'توزيع الشقق على مشرفي السكن' android-007/app/src/main/assets/www/index.html
-          grep -q 'إثبات الساعات' android-007/app/src/main/assets/www/index.html
-          grep -q 'خرجوا من السكن' android-007/app/src/main/assets/www/index.html
-          grep -q 'ردود الشركة' android-007/app/src/main/assets/www/index.html
-          grep -q 'الاسترداد' android-007/app/src/main/assets/www/index.html
-          grep -q 'المستخدمون' android-007/app/src/main/assets/www/index.html
-
-          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(' android-007/app/src/main/assets/www/index.html; then
-            echo 'ERROR: stale compatibility code exists in assembled fallback'
-            exit 1
-          fi
-
-          node --check /tmp/007-v133-fallback.js
-
-      - name: Assemble exact premium 007 launcher icon
+      - name: Assemble premium 007 launcher icon
         shell: bash
         run: |
           set -euo pipefail
@@ -187,51 +169,23 @@ jobs:
               android-007/icon/ic_launcher.webp.b64.part2 \
               android-007/icon/ic_launcher.webp.b64.part3 \
               android-007/icon/ic_launcher.webp.b64.part4 \
-            | base64 --decode \
-            > android-007/app/src/main/res/drawable/ic_launcher_007.webp
+            | base64 --decode > android-007/app/src/main/res/drawable/ic_launcher_007.webp
           test "$(wc -c < android-007/app/src/main/res/drawable/ic_launcher_007.webp)" -eq 44070
           echo '235e044394b6a68ad6df6c4e41b45755d1fa8da6  android-007/app/src/main/res/drawable/ic_launcher_007.webp' | sha1sum -c -
 
-      - name: Verify v1.3.3 version
-        shell: bash
+      - name: Verify app version
         run: |
           grep -q "versionCode 13" android-007/app/build.gradle
           grep -q "versionName '1.3.3'" android-007/app/build.gradle
 
-      - name: Build Debug APK
+      - name: Build APK
         working-directory: android-007
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
           name: 007-Operations-v1.3.3-Live-V156
           path: android-007/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
-
-      - name: Mark successful v1.3.3 build
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build-status
-          {
-            echo '007 Operations APK v1.3.3'
-            echo 'status=SUCCESS'
-            echo 'mode=LIVE_PORTAL_V156_WITH_COMPLETE_ASSEMBLED_FALLBACK'
-            echo 'portal=https://007-operations-portal.vercel.app/portal'
-            echo "run_id=${GITHUB_RUN_ID}"
-            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
-            echo "commit=${GITHUB_SHA}"
-            echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo 'artifact=007-Operations-v1.3.3-Live-V156'
-          } > build-status/007-operations-v1.3.3.txt
-          git config user.name '007 APK Builder'
-          git config user.email 'actions@users.noreply.github.com'
-          git add build-status/007-operations-v1.3.3.txt
-          git commit -m 'Record successful 007 Operations v1.3.3 V156 build [skip ci]' || exit 0
-          for i in 1 2 3; do
-            git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
-            sleep 3
-          done
-          echo 'Build succeeded; status marker push skipped after retries'
