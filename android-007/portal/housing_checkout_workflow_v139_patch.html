@@ -1,10 +1,10 @@
 <style id="housingCheckoutV139Style">
 .hh139-preview{border:1px solid #315276;background:#0b2035;border-radius:13px;padding:12px 14px;margin:10px 0;line-height:1.9;color:#c7d6e7}.hh139-preview b{color:#f1cf79}.hh139-result{border-radius:12px;padding:11px 13px;margin:9px 0;border:1px solid #2a405b;background:#0a1a2b;line-height:1.8}.hh139-result.ok{border-color:#2f6a51;background:#0d2820;color:#b8efd1}.hh139-result.bad{border-color:#7b3540;background:#2b151a;color:#ffc1c7}.hh139-eval{margin-top:10px;padding:11px 13px;border:1px solid #2b425f;background:#081827;border-radius:12px;line-height:1.75}.hh139-eval.ok{border-color:#2f6a51}.hh139-eval.bad{border-color:#71333c}.hh139-eval .hh139-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}.hh139-eval .hh139-grid>div{background:#0c2034;border-radius:9px;padding:8px}.hh139-eval small{display:block;color:#8da1b9}.hh139-eval strong{display:block;margin-top:3px}.hh139-copy{margin-top:9px;border:1px solid #846d36;background:#342a14;color:#f1cf79;border-radius:9px;padding:7px 10px;font-weight:800}.hh139-required{color:#ffb5bd;font-weight:800}@media(max-width:720px){.hh139-eval .hh139-grid{grid-template-columns:1fr 1fr}}
 </style>
-<script id="housingCheckoutV139Script">
+<script id="housingCheckoutV139Script" data-version="1.5.7">
 (function(){
 'use strict';
-let checkoutMode=false,stayCache=null,preview=null,saving=false,decorating=false;
+let checkoutMode=false,stayCache=null,preview=null,saving=false,decorating=false,scheduleTimer=null;
 const statements=new Map();
 const byId=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -69,7 +69,7 @@ async function saveCheckout(){
   byId('hh132ReqModal').classList.remove('open');checkoutMode=false;
   if(row.target_met)toast(`تم إرسال طلب الخروج للموافقة ✅ التارجت متحقق (${num(row.actual_hours).toFixed(2)} / ${num(row.target_hours).toFixed(2)} ساعة) — بدون خصم`);
   else toast(`تم إرسال طلب الخروج للموافقة ⚠ الخصم المحسوب ${money(row.deduction_amount)} — العجز ${(num(row.target_hours)-num(row.actual_hours)).toFixed(2)} ساعة`,true);
-  if(typeof window.refreshAll==='function')await window.refreshAll();setTimeout(()=>document.querySelector('[data-hht="requests"]')?.click(),100);
+  if(typeof window.refreshAll==='function')await window.refreshAll();schedule(180);setTimeout(()=>document.querySelector('[data-hht="requests"]')?.click(),100);
  }catch(e){console.warn('checkout v139',e);if(!String(e?.message||'').includes('تم حفظ طلب الخروج'))toast(e.message||'تعذر إرسال طلب الخروج',true)}finally{saving=false;btn.disabled=false}
 }
 function statementFor(r,a){const short=Math.max(num(a.target_hours)-num(a.actual_hours),0);return `بيان خصم سكن الغردقة — 007 Operations\nاسم المندوب: ${r.rider_name||'—'}\nRider ID: ${r.rider_id||'—'}\nتاريخ الخروج: ${arDate(r.effective_date)}\nفترة المحاسبة: ${arDate(a.period_start)} إلى ${arDate(a.period_end)}\nعدد الأيام: ${a.days_count}\nالتارجت المطلوب: ${num(a.target_hours).toFixed(2)} ساعة\nالساعات المحققة: ${num(a.actual_hours).toFixed(2)} ساعة\nالعجز: ${short.toFixed(2)} ساعة\nقيمة السكن عن الفترة: ${num(a.prorated_housing_fee).toFixed(2)} جنيه\nقيمة الخصم المطلوب: ${num(a.deduction_amount).toFixed(2)} جنيه\nالسبب: عدم تحقيق تارجت ساعات السكن للفترة المذكورة.`}
@@ -88,10 +88,20 @@ async function decorateRequests(){
   });
  }catch(e){console.warn('decorate v139',e)}finally{decorating=false}
 }
-function schedule(){setTimeout(decorateRequests,120)}
-document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(!t)return;const inp=t.closest('[data-in]');if(inp){checkoutMode=false;return}const out=t.closest('[data-out]');if(out){stop(e);openCheckout(out.dataset.out);return}const save=t.closest('#hh132ReqSave');if(save&&checkoutMode){stop(e);saveCheckout();return}const cp=t.closest('[data-hh139-copy]');if(cp){stop(e);copyStatement(cp.dataset.hh139Copy);return}const close=t.closest('[data-hh132-close="hh132ReqModal"]');if(close)checkoutMode=false},true);
+function schedule(delay=120){clearTimeout(scheduleTimer);scheduleTimer=setTimeout(()=>decorateRequests(),delay)}
+document.addEventListener('click',e=>{
+ const t=e.target instanceof Element?e.target:null;if(!t)return;
+ const inp=t.closest('[data-in]');if(inp){checkoutMode=false;return}
+ const out=t.closest('[data-out]');if(out){stop(e);openCheckout(out.dataset.out);return}
+ const save=t.closest('#hh132ReqSave');if(save&&checkoutMode){stop(e);saveCheckout();return}
+ const cp=t.closest('[data-hh139-copy]');if(cp){stop(e);copyStatement(cp.dataset.hh139Copy);return}
+ const close=t.closest('[data-hh132-close="hh132ReqModal"]');if(close){checkoutMode=false;return}
+ if(t.closest('[data-hht="requests"]'))schedule(180);
+},true);
 document.addEventListener('change',e=>{if(checkoutMode&&e.target?.id==='hh132ReqDate')refreshPreview()});
 document.addEventListener('input',e=>{if(checkoutMode&&e.target?.id==='hh139ActualHours')renderResult()});
-const obs=new MutationObserver(schedule);function boot(){if(document.body){obs.observe(document.body,{childList:true,subtree:true});schedule()}else setTimeout(boot,100)}boot();
+const previousRefresh=window.refreshAll;
+if(typeof previousRefresh==='function')window.refreshAll=async function(){const r=await previousRefresh.apply(this,arguments);schedule(180);return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>schedule(350),{once:true});else schedule(350);
 })();
 </script>
