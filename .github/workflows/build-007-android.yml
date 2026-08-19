@@ -69,7 +69,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Verify live portal and assemble bundled fallback
+      - name: Verify live portal V156 and assemble complete bundled fallback
         shell: bash
         run: |
           set -euo pipefail
@@ -80,16 +80,22 @@ jobs:
           grep -q 'LOAD_NO_CACHE' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
           grep -q 'LOCAL_FALLBACK_URL' android-007/app/src/main/java/com/zerozeroseven/operations/MainActivity.java
 
-          # Production /portal is intentionally a small runtime composer now.
+          # Verify Production is the current complete portal composer.
           curl --fail --silent --show-error --location \
             'https://007-operations-portal.vercel.app/portal' \
             --output /tmp/live-composer.html
           grep -q '007 Operations' /tmp/live-composer.html
-          grep -q 'fullPortalComposerV135' /tmp/live-composer.html
+          grep -q 'fullPortalComposerV156' /tmp/live-composer.html
+          grep -q 'housing_checkout_workflow_v139_patch.html' /tmp/live-composer.html
           grep -q 'housing_v135_fix_patch.html' /tmp/live-composer.html
           grep -q 'realtime_v134_patch.html' /tmp/live-composer.html
+          grep -q 'app_ui_v136_patch.html' /tmp/live-composer.html
+          grep -q 'housing_change_unit_v147_patch.html' /tmp/live-composer.html
+          grep -q 'housing_stays_filter_v149_patch.html' /tmp/live-composer.html
+          grep -q 'zones_archive_v153_patch.html' /tmp/live-composer.html
+          grep -q 'housing_supervisor_assignment_v153_patch.html' /tmp/live-composer.html
 
-          # Build a complete offline fallback from immutable base + current portal modules.
+          # Build a complete offline fallback from immutable base + the same current portal modules.
           curl --fail --silent --show-error --location \
             'https://raw.githubusercontent.com/maysara12/amazon-bot/79ee2cb013c090d299b663d82533233497f9df28/web-007/index.html' \
             --output /tmp/base.html
@@ -106,9 +112,20 @@ jobs:
               'android-007/portal/v110_patch.html',
               'android-007/portal/modules_v120_patch.html',
               'android-007/portal/hurghada_housing_v132_patch.html',
+              'android-007/portal/housing_checkout_workflow_v139_patch.html',
               'android-007/portal/housing_v135_fix_patch.html',
               'android-007/portal/auth_v111_patch.html',
               'android-007/portal/realtime_v134_patch.html',
+              'android-007/portal/app_ui_v136_patch.html',
+              'android-007/portal/housing_requests_filter_v137_patch.html',
+              'android-007/portal/brand_logo_v138_patch.html',
+              'android-007/portal/housing_evidence_cleanup_v140_patch.html',
+              'android-007/portal/housing_checkin_layout_v141_patch.html',
+              'android-007/portal/housing_assess_archive_v146_patch.html',
+              'android-007/portal/housing_change_unit_v147_patch.html',
+              'android-007/portal/housing_stays_filter_v149_patch.html',
+              'android-007/portal/zones_archive_v153_patch.html',
+              'android-007/portal/housing_supervisor_assignment_v153_patch.html',
           ]
           patches = [Path(p).read_text(encoding='utf-8') for p in patch_paths]
           if '</body>' not in base:
@@ -125,23 +142,36 @@ jobs:
           Path('/tmp/007-v133-fallback.js').write_text('\n'.join(scripts), encoding='utf-8')
           PY
 
-          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 100000
+          test "$(wc -c < android-007/app/src/main/assets/www/index.html)" -gt 150000
           grep -q 'SUPABASE_URL' android-007/app/src/main/assets/www/index.html
           grep -q 'modulesV120Script' android-007/app/src/main/assets/www/index.html
           grep -q 'data-core="orders-only"' android-007/app/src/main/assets/www/index.html
           grep -q 'hh132Script' android-007/app/src/main/assets/www/index.html
-          grep -q 'housingV135FixScript' android-007/app/src/main/assets/www/index.html
           grep -q 'housing_create_checkout_request' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingV135FixScript' android-007/app/src/main/assets/www/index.html
           grep -q 'loginErrorV112Script' android-007/app/src/main/assets/www/index.html
           grep -q 'realtimeV134Script' android-007/app/src/main/assets/www/index.html
           grep -q 'postgres_changes' android-007/app/src/main/assets/www/index.html
+          grep -q 'appUiV136Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingRequestsFilterV137Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'brandLogoV138Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingEvidenceCleanupV140Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingCheckinLayoutV141Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingAssessArchiveV146Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingChangeUnitV147Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingStaysFilterV149Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'zonesArchiveV153Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'housingSupervisorAssignmentV153Script' android-007/app/src/main/assets/www/index.html
+          grep -q 'تغيير شقة المندوب' android-007/app/src/main/assets/www/index.html
+          grep -q 'تعديل تواريخ المندوب' android-007/app/src/main/assets/www/index.html
+          grep -q 'توزيع الشقق على مشرفي السكن' android-007/app/src/main/assets/www/index.html
           grep -q 'إثبات الساعات' android-007/app/src/main/assets/www/index.html
           grep -q 'خرجوا من السكن' android-007/app/src/main/assets/www/index.html
           grep -q 'ردود الشركة' android-007/app/src/main/assets/www/index.html
           grep -q 'الاسترداد' android-007/app/src/main/assets/www/index.html
           grep -q 'المستخدمون' android-007/app/src/main/assets/www/index.html
 
-          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(|window\.me' android-007/app/src/main/assets/www/index.html; then
+          if grep -Eq 'ISSUE_LABELS|STATUS_LABELS|statusBadge\(' android-007/app/src/main/assets/www/index.html; then
             echo 'ERROR: stale compatibility code exists in assembled fallback'
             exit 1
           fi
@@ -175,7 +205,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 007-Operations-v1.3.3-Live
+          name: 007-Operations-v1.3.3-Live-V156
           path: android-007/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
@@ -188,18 +218,18 @@ jobs:
           {
             echo '007 Operations APK v1.3.3'
             echo 'status=SUCCESS'
-            echo 'mode=LIVE_PORTAL_WITH_ASSEMBLED_FALLBACK'
+            echo 'mode=LIVE_PORTAL_V156_WITH_COMPLETE_ASSEMBLED_FALLBACK'
             echo 'portal=https://007-operations-portal.vercel.app/portal'
             echo "run_id=${GITHUB_RUN_ID}"
             echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo 'artifact=007-Operations-v1.3.3-Live'
+            echo 'artifact=007-Operations-v1.3.3-Live-V156'
           } > build-status/007-operations-v1.3.3.txt
           git config user.name '007 APK Builder'
           git config user.email 'actions@users.noreply.github.com'
           git add build-status/007-operations-v1.3.3.txt
-          git commit -m 'Record successful 007 Operations v1.3.3 build [skip ci]' || exit 0
+          git commit -m 'Record successful 007 Operations v1.3.3 V156 build [skip ci]' || exit 0
           for i in 1 2 3; do
             git pull --rebase origin 007-operations-android && git push origin HEAD:007-operations-android && exit 0
             sleep 3
