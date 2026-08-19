@@ -1,7 +1,7 @@
 <style id="appUiV136Style">
 .fab{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
-<script id="appUiV136Script" data-version="1.6.0">
+<script id="appUiV136Script" data-version="1.6.1">
 (function(){
   'use strict';
   function removeLegacyFab(){
@@ -25,5 +25,103 @@
   };
   setTimeout(removeLegacyFab,250);
   setTimeout(removeLegacyFab,900);
+})();
+</script>
+
+<script id="housingRentAdminOnlyV161Script" data-version="1.6.1">
+(function(){
+'use strict';
+if(window.__housingRentAdminOnlyV161)return;window.__housingRentAdminOnlyV161=true;
+let saving=false,decorating=false;
+function currentMe(){try{if(typeof me!=='undefined'&&me)return me}catch(_){}return window.me||null}
+function isFinanceAdmin(){const m=currentMe();return !!m&&(['OWNER','ADMIN'].includes(m.role)||m.can_manage_users===true)}
+function cairoToday(){try{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const x=Object.fromEntries(p.map(i=>[i.type,i.value]));return `${x.year}-${x.month}-${x.day}`}catch(_){return new Date().toISOString().slice(0,10)}}
+function arDate(v){if(!v)return 'غير محدد';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:String(v)}
+function dayDiff(from,to){const a=String(from).split('-').map(Number),b=String(to).split('-').map(Number);return Math.round((Date.UTC(b[0],b[1]-1,b[2])-Date.UTC(a[0],a[1]-1,a[2]))/86400000)}
+function syncFinanceField(){
+ const input=document.getElementById('hh160RentDueDate');if(!input)return;
+ const field=input.closest('.field');if(field)field.style.display=isFinanceAdmin()?'':'none';
+ if(!isFinanceAdmin())input.value='';
+}
+async function loadFinanceDate(){
+ syncFinanceField();
+ if(!isFinanceAdmin())return;
+ const id=document.getElementById('hh158UnitId')?.value||'';
+ const input=document.getElementById('hh160RentDueDate');if(!input)return;
+ if(!id){input.value='';return}
+ try{const rows=await api('housing_unit_finance?select=rent_due_date&unit_id=eq.'+encodeURIComponent(id)+'&limit=1');input.value=(Array.isArray(rows)?rows[0]?.rent_due_date:null)||''}
+ catch(e){console.warn('housing finance date load',e);input.value=''}
+}
+function dueMarkup(date){
+ if(!date)return '<div class="hh160-rent-due"><b>موعد دفع الإيجار:</b> غير محدد<small>يظهر للإدارة فقط.</small></div>';
+ const diff=dayDiff(cairoToday(),date);let cls='ok',note='';
+ if(diff<0){cls='late';note=`متأخر ${Math.abs(diff)} يوم`}
+ else if(diff===0){cls='today';note='موعد الدفع اليوم'}
+ else if(diff<=3){cls='soon';note=`متبقي ${diff} يوم`}
+ else note=`متبقي ${diff} يوم`;
+ return `<div class="hh160-rent-due ${cls}"><b>موعد دفع الإيجار: ${arDate(date)}</b><small>${note}</small></div>`;
+}
+async function decorateFinanceDates(){
+ const root=document.getElementById('hh132Body');if(!root)return;
+ const panel=[...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='شقق الغردقة');if(!panel)return;
+ panel.querySelectorAll('.hh160-rent-due').forEach(x=>x.remove());
+ if(!isFinanceAdmin()||decorating)return;
+ const cards=[...panel.querySelectorAll('.hh132-unit')];if(!cards.length)return;
+ decorating=true;
+ try{
+   const rows=await api('housing_unit_finance?select=unit_id,rent_due_date')||[];
+   const map=new Map(rows.map(x=>[x.unit_id,x.rent_due_date]));
+   cards.forEach(card=>{
+     const id=card.querySelector('[data-edit-unit]')?.dataset.editUnit||'';if(!id)return;
+     const holder=document.createElement('div');holder.innerHTML=dueMarkup(map.get(id)||null);
+     const el=holder.firstElementChild,actions=card.querySelector('.hh132-actions');
+     if(actions)actions.insertAdjacentElement('beforebegin',el);else card.appendChild(el);
+   });
+ }catch(e){console.warn('housing finance decorate',e)}finally{decorating=false}
+}
+async function saveUnitV161(){
+ if(saving)return;
+ const m=currentMe();if(!m)return toast('بيانات الحساب غير جاهزة',true);
+ const id=document.getElementById('hh158UnitId')?.value||'';
+ const name=document.getElementById('hh158UnitName')?.value.trim()||'';
+ const code=document.getElementById('hh158UnitCode')?.value.trim()||'';
+ const capacity=Number(document.getElementById('hh158UnitCapacity')?.value||0);
+ const monthly_rent=Number(document.getElementById('hh158UnitRent')?.value||0);
+ const landlord_name=document.getElementById('hh158Landlord')?.value.trim()||'';
+ const landlord_phone=document.getElementById('hh158LandlordPhone')?.value.trim()||'';
+ const address=document.getElementById('hh158UnitAddress')?.value.trim()||'';
+ if(!name)return toast('اكتب اسم الشقة',true);
+ if(!Number.isFinite(capacity)||capacity<1)return toast('السعة لازم تكون 1 أو أكثر',true);
+ if(!Number.isFinite(monthly_rent)||monthly_rent<0)return toast('راجع قيمة الإيجار',true);
+ let zone=null;try{zone=(typeof zones!=='undefined'?zones:[]).find(x=>x.code==='HURGHADA'||x.name_ar==='الغردقة'||String(x.name_en||'').toLowerCase()==='hurghada')}catch(_){}
+ if(!zone&&!id)return toast('زون الغردقة غير جاهز',true);
+ const body={name,code:code||null,capacity,monthly_rent,landlord_name:landlord_name||null,landlord_phone:landlord_phone||null,address:address||null};
+ if(!id)Object.assign(body,{zone_id:zone.id,unit_type:'APARTMENT',status:'ACTIVE',created_by:m.id});
+ const btn=document.getElementById('hh158UnitSave');if(btn)btn.disabled=true;saving=true;
+ try{
+   let unitId=id;
+   if(id)await api('housing_units?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});
+   else{
+     const created=await api('housing_units',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+     unitId=Array.isArray(created)?created[0]?.id:created?.id;
+     if(!unitId)throw new Error('تم حفظ الشقة لكن تعذر تحديد رقمها');
+   }
+   if(isFinanceAdmin()){
+     const rent_due_date=document.getElementById('hh160RentDueDate')?.value||null;
+     await api('housing_unit_finance?on_conflict=unit_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({unit_id:unitId,rent_due_date,updated_by:m.id,updated_at:new Date().toISOString()})});
+   }
+   document.getElementById('hh158UnitModal')?.classList.remove('open');toast('تم حفظ الشقة ✅');
+   if(typeof window.refreshAll==='function')await window.refreshAll();
+   setTimeout(()=>{document.querySelector('[data-hht="units"]')?.click();setTimeout(decorateFinanceDates,220)},120);
+ }catch(e){toast(e.message||'تعذر حفظ الشقة',true)}finally{saving=false;if(btn)btn.disabled=false}
+}
+document.addEventListener('click',e=>{
+ const t=e.target instanceof Element?e.target:null;if(!t)return;
+ if(t.closest('[data-add-unit],[data-edit-unit]')){setTimeout(loadFinanceDate,120);setTimeout(loadFinanceDate,420);return}
+ if(t.closest('[data-hht="units"]')){setTimeout(decorateFinanceDates,220);return}
+ if(t.closest('#hh158UnitSave')){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();saveUnitV161();return}
+},true);
+const prev=window.refreshAll;if(typeof prev==='function')window.refreshAll=async function(){const r=await prev.apply(this,arguments);setTimeout(syncFinanceField,80);setTimeout(decorateFinanceDates,260);return r};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(syncFinanceField,800);setTimeout(decorateFinanceDates,1100)},{once:true});else{setTimeout(syncFinanceField,700);setTimeout(decorateFinanceDates,1000)}
 })();
 </script>
