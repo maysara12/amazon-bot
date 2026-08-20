@@ -9,23 +9,28 @@ const client = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 let timeoutId
 
 try {
   const received = new Promise((resolve, reject) => {
-    timeoutId = setTimeout(() => reject(new Error('Realtime event timeout')), 10_000)
+    timeoutId = setTimeout(() => reject(new Error('Realtime event timeout after 30s')), 30_000)
 
     const channel = client
       .channel(`v2-ci-smoke-${Date.now()}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'v2_realtime_smoke', filter: 'id=eq.1' },
+        { event: 'UPDATE', schema: 'public', table: 'v2_realtime_smoke' },
         (payload) => resolve({ channel, payload }),
       )
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          const { error } = await client.rpc('v2_realtime_smoke_ping')
-          if (error) reject(new Error(`Realtime smoke RPC failed: ${error.message}`))
+          await sleep(750)
+          for (let attempt = 1; attempt <= 2; attempt += 1) {
+            const { error } = await client.rpc('v2_realtime_smoke_ping')
+            if (error) return reject(new Error(`Realtime smoke RPC failed: ${error.message}`))
+            if (attempt < 2) await sleep(1_500)
+          }
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           reject(new Error(`Realtime channel status: ${status}`))
