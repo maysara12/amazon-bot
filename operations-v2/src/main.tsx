@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { App } from './app/App'
 import { queryClient } from './app/query-client'
 import './styles.css'
+import './realtime/realtime.css'
 
 const root = document.getElementById('root')
 
