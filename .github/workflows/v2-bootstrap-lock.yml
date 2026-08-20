@@ -5,6 +5,8 @@ on:
     branches: [007-operations-v2]
     paths:
       - 'operations-v2/package.json'
+      - 'operations-v2/tsconfig.json'
+      - '.github/workflows/v2-bootstrap-lock.yml'
 
 permissions:
   contents: write
@@ -40,19 +42,34 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Typecheck and build
-        run: npm run build
-
       - name: Commit generated lockfile
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "$(git status --porcelain -- package-lock.json)" ]]; then
+          if [[ -n "$(git status --porcelain -- package-lock.json)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json
+            git commit -m 'chore(v2): lock bootstrap dependencies'
+            git push origin HEAD:007-operations-v2
+          else
             echo 'package-lock.json already up to date'
-            exit 0
           fi
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Record validated bootstrap commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > .bootstrap-green
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
-          git commit -m 'chore(v2): lock bootstrap dependencies'
+          git add .bootstrap-green
+          if git diff --cached --quiet; then
+            echo 'bootstrap marker already current'
+            exit 0
+          fi
+          git commit -m 'ci(v2): record successful bootstrap validation'
           git push origin HEAD:007-operations-v2
