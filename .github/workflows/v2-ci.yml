@@ -55,6 +55,9 @@ jobs:
       - name: Read-only Staging smoke test
         run: node scripts/smoke-staging.mjs
 
+      - name: Realtime Staging smoke test
+        run: node scripts/smoke-realtime.mjs
+
       - name: Record validated V2 source commit
         shell: bash
         run: |
