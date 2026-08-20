@@ -1,0 +1,183 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f7f9fc;
+  background: #050b14;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --navy-950: #050b14;
+  --navy-900: #07111f;
+  --navy-850: #0a1727;
+  --navy-800: #0d1d30;
+  --navy-700: #152a43;
+  --gold-500: #ddb75a;
+  --gold-400: #f1cf79;
+  --text: #f7f9fc;
+  --muted: #93a5bb;
+  --line: rgba(126, 151, 181, 0.19);
+  --success: #58d69a;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--navy-950); }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea, select { font: inherit; }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 80% -10%, rgba(50, 91, 139, 0.34), transparent 38%),
+    radial-gradient(circle at 8% 90%, rgba(221, 183, 90, 0.09), transparent 34%),
+    linear-gradient(145deg, var(--navy-900), var(--navy-950) 62%);
+}
+
+#root { min-height: 100vh; position: relative; }
+
+.app-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: clamp(34px, 6vw, 78px) 0 48px;
+}
+
+.hero-card,
+.foundation-panel,
+.status-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, rgba(16, 34, 56, 0.88), rgba(7, 17, 31, 0.88));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.hero-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 26px;
+  align-items: center;
+  padding: clamp(26px, 5vw, 52px);
+  border-radius: 30px;
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-card::after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  inset: -150px auto auto -90px;
+  background: rgba(221, 183, 90, 0.08);
+  filter: blur(10px);
+}
+
+.brand-mark {
+  width: 92px;
+  aspect-ratio: 1;
+  border-radius: 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(241, 207, 121, 0.4);
+  background: linear-gradient(145deg, rgba(221, 183, 90, 0.13), rgba(7, 17, 31, 0.45));
+  color: var(--gold-400);
+  font-weight: 900;
+  font-size: 29px;
+  letter-spacing: 0.06em;
+  box-shadow: inset 0 0 35px rgba(221, 183, 90, 0.08);
+}
+
+.eyebrow {
+  margin: 0 0 9px;
+  color: var(--gold-400);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+}
+
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 12px; font-size: clamp(34px, 6vw, 64px); letter-spacing: -0.04em; }
+h1 span { color: var(--gold-400); }
+h2 { margin-bottom: 10px; font-size: clamp(25px, 4vw, 37px); }
+
+.hero-copy,
+.foundation-panel p,
+.status-card span {
+  color: var(--muted);
+  line-height: 1.85;
+}
+
+.hero-copy { max-width: 750px; margin-bottom: 0; font-size: clamp(14px, 2vw, 17px); }
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+  margin: 16px 0;
+}
+
+.status-card {
+  min-height: 150px;
+  border-radius: 19px;
+  padding: 19px;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-card p { color: var(--muted); font-size: 12px; margin-bottom: 13px; }
+.status-card strong { color: var(--text); font-size: 19px; margin-bottom: 9px; }
+.status-card span { font-size: 12px; margin-top: auto; }
+
+.foundation-panel {
+  border-radius: 23px;
+  padding: clamp(22px, 4vw, 36px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+}
+.foundation-panel > div:first-child { max-width: 760px; }
+.foundation-panel p:last-child { margin-bottom: 0; }
+
+.live-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(88, 214, 154, 0.28);
+  background: rgba(29, 90, 62, 0.16);
+  color: #a3ebc4;
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.live-pill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 5px rgba(88, 214, 154, 0.08);
+}
+
+@media (max-width: 900px) {
+  .status-grid { grid-template-columns: 1fr 1fr; }
+  .foundation-panel { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 620px) {
+  .app-shell { width: min(100% - 20px, 1180px); padding-top: 18px; }
+  .hero-card { grid-template-columns: 1fr; gap: 19px; border-radius: 23px; }
+  .brand-mark { width: 70px; border-radius: 20px; font-size: 23px; }
+  .status-grid { grid-template-columns: 1fr; gap: 9px; }
+  .status-card { min-height: 126px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
