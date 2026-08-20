@@ -37,10 +37,12 @@ jobs:
           node-version: '24'
 
       - name: Resolve deterministic dependency graph
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set package-lock true
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          test -s package-lock.json
 
       - name: Commit generated lockfile
         shell: bash
@@ -55,6 +57,9 @@ jobs:
           else
             echo 'package-lock.json already up to date'
           fi
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck and build
         run: npm run build
