@@ -33,8 +33,6 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-          cache: npm
-          cache-dependency-path: operations-v2/package-lock.json
 
       - name: Resolve deterministic dependency graph
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
