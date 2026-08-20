@@ -1,0 +1,50 @@
+name: 007 Operations V2 CI
+
+on:
+  push:
+    branches: [007-operations-v2]
+    paths:
+      - 'operations-v2/**'
+      - '!operations-v2/.bootstrap-green'
+  pull_request:
+    paths:
+      - 'operations-v2/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: operations-v2-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: https://uxeuistzphbbzypzcbsp.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_e3g9HCgtIdfxmP1PA0DTwQ_xAR1jcN0
+
+    defaults:
+      run:
+        working-directory: operations-v2
+
+    steps:
+      - name: Checkout V2
+        uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: operations-v2/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and production build
+        run: npm run build
+
+      - name: Read-only Staging smoke test
+        run: node scripts/smoke-staging.mjs
