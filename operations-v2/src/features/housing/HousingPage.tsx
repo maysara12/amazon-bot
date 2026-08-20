@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { useHousingSnapshot } from './queries'
 
@@ -150,6 +150,6 @@ function Kpi({ label, value, sub, accent = false }: { label: string; value: numb
   return <article className={`housing-kpi ${accent ? 'accent' : ''}`}><small>{label}</small><strong>{money.format(value)}</strong><span>{sub}</span></article>
 }
 
-function StateCard({ title, detail, action, loading = false }: { title: string; detail: string; action?: React.ReactNode; loading?: boolean }) {
+function StateCard({ title, detail, action, loading = false }: { title: string; detail: string; action?: ReactNode; loading?: boolean }) {
   return <section className="state-card"><div className={loading ? 'state-orb loading' : 'state-orb'}>007</div><h2>{title}</h2><p>{detail}</p>{action}</section>
 }
