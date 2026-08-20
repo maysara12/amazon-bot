@@ -93,6 +93,31 @@ export type HousingAssessmentRow = {
   updated_at: string
 }
 
+export type HousingRequestRow = {
+  id: string
+  client_operation_id: string | null
+  zone_id: string
+  unit_id: string | null
+  request_type: string
+  rider_id: string
+  rider_name: string
+  phone: string | null
+  effective_date: string
+  billing_start_date: string | null
+  status: string
+  requested_by: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_note: string | null
+  supervisor_note: string | null
+  stay_id: string | null
+  checkout_assessment_id: string | null
+  hours_period_start: string | null
+  hours_period_end: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type AppModuleRow = {
   slug: string
   name_ar: string
@@ -115,9 +140,28 @@ export type Database = {
       housing_units: TableShape<HousingUnitRow>
       housing_stays: TableShape<HousingStayRow>
       housing_assessments: TableShape<HousingAssessmentRow>
+      housing_requests: TableShape<HousingRequestRow>
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      housing_request_checkin_v2: {
+        Args: {
+          p_client_operation_id: string
+          p_unit_id: string
+          p_rider_id: string
+          p_rider_name: string
+          p_phone?: string | null
+          p_effective_date?: string
+          p_billing_start_date?: string | null
+          p_supervisor_note?: string | null
+        }
+        Returns: HousingRequestRow
+      }
+      v2_realtime_smoke_ping: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+    }
     Enums: { app_role: AppRole }
     CompositeTypes: Record<string, never>
   }
