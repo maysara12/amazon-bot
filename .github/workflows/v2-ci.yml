@@ -5,13 +5,16 @@ on:
     branches: [007-operations-v2]
     paths:
       - 'operations-v2/**'
+      - '.github/workflows/v2-ci.yml'
       - '!operations-v2/.bootstrap-green'
+      - '!operations-v2/.ci-green'
   pull_request:
     paths:
       - 'operations-v2/**'
+      - '.github/workflows/v2-ci.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: operations-v2-ci-${{ github.ref }}
@@ -32,6 +35,9 @@ jobs:
     steps:
       - name: Checkout V2
         uses: actions/checkout@v4
+        with:
+          ref: 007-operations-v2
+          fetch-depth: 1
 
       - name: Set up Node 24
         uses: actions/setup-node@v5
@@ -48,3 +54,18 @@ jobs:
 
       - name: Read-only Staging smoke test
         run: node scripts/smoke-staging.mjs
+
+      - name: Record validated V2 source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > .ci-green
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .ci-green
+          if git diff --cached --quiet; then
+            echo 'V2 CI marker already current'
+            exit 0
+          fi
+          git commit -m 'ci(v2): record successful source validation'
+          git push origin HEAD:007-operations-v2
