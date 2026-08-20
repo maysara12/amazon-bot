@@ -9,7 +9,8 @@ export function useHousingRealtime(): HousingRealtimeStatus {
   const [status, setStatus] = useState<HousingRealtimeStatus>('connecting')
 
   useEffect(() => {
-    if (!supabase) {
+    const client = supabase
+    if (!client) {
       setStatus('fallback')
       return
     }
@@ -19,7 +20,7 @@ export function useHousingRealtime(): HousingRealtimeStatus {
       void queryClient.invalidateQueries({ queryKey: ['housing', 'snapshot'] })
     }
 
-    const channel = supabase
+    const channel = client
       .channel('007-v2-housing-staging')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'housing_units' }, invalidateHousing)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'housing_stays' }, invalidateHousing)
@@ -34,7 +35,7 @@ export function useHousingRealtime(): HousingRealtimeStatus {
 
     return () => {
       mounted = false
-      void supabase.removeChannel(channel)
+      void client.removeChannel(channel)
     }
   }, [queryClient])
 
