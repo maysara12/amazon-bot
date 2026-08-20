@@ -8,3 +8,6 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
+
+# Root legacy ignore rule excludes *.json. V2 must commit its lockfile.
+!package-lock.json
