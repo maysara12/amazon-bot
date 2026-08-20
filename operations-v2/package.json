@@ -1,6 +1,6 @@
 {
   "name": "007-operations-v2",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Isolated modular foundation for 007 Operations V2",
   "private": true,
   "type": "module",
