@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import { useHousingRealtime } from '../../realtime/useHousingRealtime'
 import { useHousingSnapshot } from './queries'
 
 const money = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 0 })
@@ -7,6 +8,7 @@ const percent = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 0 })
 
 export function HousingPage() {
   const [zoneId, setZoneId] = useState('all')
+  const realtimeStatus = useHousingRealtime()
   const { data, isLoading, isFetching, error, refetch } = useHousingSnapshot()
 
   const view = useMemo(() => {
@@ -68,6 +70,7 @@ export function HousingPage() {
           <p>أول Module حقيقي على Architecture الجديدة — قراءة فقط حاليًا، بدون أي Mutation على Production.</p>
         </div>
         <div className="module-actions">
+          <span className={`realtime-badge ${realtimeStatus}`}>{realtimeStatus === 'live' ? 'REALTIME LIVE' : realtimeStatus === 'connecting' ? 'CONNECTING' : '60S FALLBACK'}</span>
           <select className="v2-select" value={zoneId} onChange={(event) => setZoneId(event.target.value)} aria-label="اختيار الزون">
             <option value="all">كل الزونات</option>
             {data.zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name_ar}</option>)}
