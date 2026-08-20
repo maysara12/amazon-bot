@@ -6,6 +6,7 @@ on:
     paths:
       - 'operations-v2/package.json'
       - 'operations-v2/tsconfig.json'
+      - 'operations-v2/.gitignore'
       - '.github/workflows/v2-bootstrap-lock.yml'
 
 permissions:
