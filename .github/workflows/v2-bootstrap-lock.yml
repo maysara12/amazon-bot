@@ -7,6 +7,8 @@ on:
       - 'operations-v2/package.json'
       - 'operations-v2/tsconfig.json'
       - 'operations-v2/.gitignore'
+      - 'operations-v2/src/**'
+      - 'operations-v2/scripts/**'
       - '.github/workflows/v2-bootstrap-lock.yml'
 
 permissions:
