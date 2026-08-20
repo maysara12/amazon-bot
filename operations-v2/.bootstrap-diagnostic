@@ -1,0 +1,8 @@
+commit=2f8179043b65f440f28e7a3ca5b1ce6dda43fd73
+exit_code=1
+---
+
+> 007-operations-v2@0.1.1 build
+> tsc --noEmit && vite build
+
+src/realtime/useHousingRealtime.ts(37,12): error TS18047: 'supabase' is possibly 'null'.
