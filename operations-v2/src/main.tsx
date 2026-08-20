@@ -6,6 +6,7 @@ import { queryClient } from './app/query-client'
 import { restoreQueryCache, startQueryCachePersistence } from './offline/query-cache'
 import './styles.css'
 import './realtime/realtime.css'
+import './offline/offline.css'
 
 async function boot() {
   const root = document.getElementById('root')
