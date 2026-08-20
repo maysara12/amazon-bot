@@ -63,7 +63,37 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Typecheck and build
-        run: npm run build
+        id: build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee /tmp/v2-build.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Persist build diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "exit_code=${{ steps.build.outputs.exit_code }}"
+            echo "---"
+            tail -n 120 /tmp/v2-build.log
+          } > .bootstrap-diagnostic
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .bootstrap-diagnostic
+          if ! git diff --cached --quiet; then
+            git commit -m 'ci(v2): persist bootstrap diagnostic'
+            git push origin HEAD:007-operations-v2
+          fi
+
+      - name: Enforce successful build
+        shell: bash
+        run: |
+          test "${{ steps.build.outputs.exit_code }}" = "0"
 
       - name: Record validated bootstrap commit
         shell: bash
