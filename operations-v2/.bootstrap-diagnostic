@@ -1,8 +1,17 @@
-commit=2f8179043b65f440f28e7a3ca5b1ce6dda43fd73
-exit_code=1
+commit=60d1cef96cbeef071435adcacf670f742a394848
+exit_code=0
 ---
 
 > 007-operations-v2@0.1.1 build
 > tsc --noEmit && vite build
 
-src/realtime/useHousingRealtime.ts(37,12): error TS18047: 'supabase' is possibly 'null'.
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 117 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.53 kB │ gzip:  0.31 kB
+dist/assets/index-BOzi--0J.css    8.65 kB │ gzip:  2.74 kB
+dist/assets/index-6D-0ytuo.js   242.67 kB │ gzip: 76.44 kB │ map: 1,955.99 kB
+
+[32m✓ built in 214ms[39m
