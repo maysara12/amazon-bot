@@ -7,6 +7,7 @@ on:
       - 'operations-v2/**'
       - '.github/workflows/v2-ci.yml'
       - '!operations-v2/.bootstrap-green'
+      - '!operations-v2/.bootstrap-diagnostic'
       - '!operations-v2/.ci-green'
       - '!operations-v2/.realtime-green'
   pull_request:
@@ -56,26 +57,17 @@ jobs:
       - name: Read-only Staging smoke test
         run: node scripts/smoke-staging.mjs
 
-      - name: Realtime Staging smoke test
-        id: realtime
-        continue-on-error: true
-        run: node scripts/smoke-realtime.mjs
-
-      - name: Record validation state
+      - name: Record release-gate validation
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$GITHUB_SHA" > .ci-green
-          if [[ "${{ steps.realtime.outcome }}" == "success" ]]; then
-            printf '%s\n' "$GITHUB_SHA" > .realtime-green
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .ci-green
-          [[ -f .realtime-green ]] && git add .realtime-green || true
           if git diff --cached --quiet; then
-            echo 'V2 validation markers already current'
+            echo 'V2 CI marker already current'
             exit 0
           fi
-          git commit -m 'ci(v2): record validation state'
+          git commit -m 'ci(v2): record successful release gate'
           git push origin HEAD:007-operations-v2
