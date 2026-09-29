@@ -1,7 +1,7 @@
 <style id="housingStaysFilterV149Style">
 .hh149-filter{margin:0 0 14px;padding:12px;background:linear-gradient(145deg,#0b1d30,#091827);border:1px solid #223b58;border-radius:15px;box-shadow:0 10px 28px #0002}.hh149-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.hh149-search{display:flex;align-items:center;gap:8px;min-width:260px;flex:1;background:#071522;border:1px solid #29435f;border-radius:11px;padding:0 11px}.hh149-search span{color:#d8b25c;font-size:18px}.hh149-search input{width:100%;height:40px;border:0;outline:0;background:transparent;color:#fff;font:13px Tahoma,Arial,sans-serif}.hh149-search input::placeholder{color:#71869f}.hh149-clear{border:1px solid #304a68;background:#10243a;color:#a9bdd2;border-radius:10px;padding:9px 12px;font-weight:700}.hh149-export{border:1px solid #8a6b28;background:linear-gradient(135deg,#c89d3e,#e3bc61);color:#07111f;border-radius:10px;padding:9px 13px;font-weight:900;box-shadow:0 6px 18px #0003}.hh149-export:disabled{opacity:.55;cursor:wait}.hh149-units{display:flex;gap:7px;overflow-x:auto;padding:10px 1px 3px;scrollbar-width:thin}.hh149-unit{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #2d4663;background:#0f2338;color:#c9d6e4;border-radius:999px;padding:8px 12px;font-weight:800;font-size:12px}.hh149-unit:hover{border-color:#6c5b32}.hh149-unit.active{background:#d8b25c;color:#07111f;border-color:#d8b25c}.hh149-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#ffffff12;color:inherit;font-size:11px}.hh149-unit.active .hh149-count{background:#07111f22}.hh149-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:7px;color:#8297ae;font-size:11px}.hh149-foot b{color:#e2c674}.hh149-empty{padding:24px;text-align:center;color:#8ea2b8;border:1px dashed #29415d;border-radius:12px;margin-top:10px;background:#081725}@media(max-width:720px){.hh149-filter{padding:10px}.hh149-search{min-width:100%;order:1}.hh149-clear{order:2}.hh149-units{margin-left:-2px;margin-right:-2px}.hh149-foot{display:block;line-height:1.8}.hh149-unit{padding:7px 10px}}
 </style>
-<script id="housingStaysFilterV149Script" data-version="1.5.0">
+<script id="housingStaysFilterV149Script" data-version="1.5.1">
 (function(){
 'use strict';
 if(window.__housingStaysFilterV149)return;window.__housingStaysFilterV149=true;
@@ -99,7 +99,7 @@ async function exportHousingDashboard(btn){
   wb.company='Zero Zero Seven';
   wb.created=new Date();
 
-  const dash=wb.addWorksheet('Dashboard',{views:[{rightToLeft:true,showGridLines:false}]});
+  const dash=wb.addWorksheet('Dashboard',{views:[{rightToLeft:false,showGridLines:false}]});
   dash.properties.defaultRowHeight=20;
   dash.columns=[
    {key:'a',width:4},{key:'b',width:26},{key:'c',width:14},{key:'d',width:14},{key:'e',width:14},{key:'f',width:16},{key:'g',width:4}
@@ -155,9 +155,9 @@ async function exportHousingDashboard(btn){
    }
   });
   dash.autoFilter={from:{row:start,column:2},to:{row:start+summary.length,column:6}};
-  dash.views=[{rightToLeft:true,showGridLines:false,state:'frozen',ySplit:10}];
+  dash.views=[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:10}];
 
-  const residents=wb.addWorksheet('Residents',{views:[{rightToLeft:true,showGridLines:false,state:'frozen',ySplit:2}]});
+  const residents=wb.addWorksheet('Residents',{views:[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:1}]});
   residents.columns=[
    {header:'الشقة',key:'unit',width:25},
    {header:'اسم المندوب',key:'name',width:42},
@@ -184,11 +184,92 @@ async function exportHousingDashboard(btn){
   });
   residents.autoFilter='A1:E'+(sorted.length+1);
 
+  // Report layout only: keep apartment permissions, residents and portal actions unchanged.
+  residents.getColumn(3).numFmt='@';
+  residents.eachRow((row,rowNumber)=>{
+   if(rowNumber>1){
+    row.height=36;
+    row.getCell(2).alignment={horizontal:'left',vertical:'middle',wrapText:true};
+    row.getCell(3).value=String(row.getCell(3).value??'');
+    row.getCell(3).alignment={horizontal:'center',vertical:'middle',readingOrder:'ltr'};
+   }
+  });
+
+  // Names and IDs appear below EACH apartment on the Dashboard itself.
+  const byApartment=new Map(summary.map(u=>[u.name,[]]));
+  sorted.forEach(person=>byApartment.get(person.unit)?.push(person));
+  let detailRow=start+summary.length+4;
+  dash.mergeCells(`B${detailRow}:F${detailRow}`);
+  const sectionTitle=dash.getCell(detailRow,2);
+  sectionTitle.value='السكان حسب الشقة — الأسماء و Rider ID';
+  sectionTitle.font={name:'Arial',size:15,bold:true,color:{argb:'FF0B1B2D'}};
+  sectionTitle.alignment={horizontal:'left',vertical:'middle'};
+  dash.getRow(detailRow).height=30;
+  detailRow+=2;
+
+  summary.forEach((unit,unitIndex)=>{
+   const people=byApartment.get(unit.name)||[];
+   const headingRow=detailRow;
+   dash.mergeCells(`B${detailRow}:F${detailRow}`);
+   const heading=dash.getCell(detailRow,2);
+   heading.value=unit.name+' — '+people.length+' ساكن';
+   heading.font={name:'Arial',size:13,bold:true,color:{argb:'FFF1CF79'}};
+   heading.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0B1B2D'}};
+   heading.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+   dash.getRow(detailRow).height=30;
+   // Clicking the apartment in the summary jumps directly to its residents.
+   dash.getCell(start+1+unitIndex,2).value={text:unit.name,hyperlink:`#'Dashboard'!B${headingRow}`,tooltip:'عرض أسماء السكان والـ IDs'};
+   detailRow++;
+   dash.mergeCells(`C${detailRow}:F${detailRow}`);
+   dash.getCell(detailRow,2).value='Rider ID';
+   dash.getCell(detailRow,3).value='اسم المندوب';
+   [2,3].forEach(col=>{
+    const cell=dash.getCell(detailRow,col);
+    cell.font={name:'Arial',size:11,bold:true,color:{argb:'FF07111F'}};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0B958'}};
+    cell.alignment={horizontal:col===2?'center':'left',vertical:'middle'};
+   });
+   dash.getRow(detailRow).height=24;
+   detailRow++;
+   if(!people.length){
+    dash.mergeCells(`B${detailRow}:F${detailRow}`);
+    const empty=dash.getCell(detailRow,2);
+    empty.value='لا يوجد ساكنون حاليًا';
+    empty.font={name:'Arial',size:11,italic:true,color:{argb:'FF566B83'}};
+    empty.alignment={horizontal:'left',vertical:'middle'};
+    dash.getRow(detailRow).height=26;
+    detailRow++;
+   }
+   people.forEach((person,personIndex)=>{
+    dash.mergeCells(`C${detailRow}:F${detailRow}`);
+    const idCell=dash.getCell(detailRow,2),nameCell=dash.getCell(detailRow,3);
+    idCell.value=String(person.rider);
+    idCell.numFmt='@';
+    nameCell.value=String(person.name);
+    [idCell,nameCell].forEach(cell=>{
+     cell.font={name:'Arial',size:11,color:{argb:'FF172B43'}};
+     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:personIndex%2===0?'FFF6F8FB':'FFEEF2F6'}};
+     cell.border={bottom:{style:'thin',color:{argb:'FFD7DEE8'}}};
+    });
+    idCell.alignment={horizontal:'center',vertical:'middle',readingOrder:'ltr'};
+    nameCell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+    dash.getRow(detailRow).height=String(person.name).length>75?42:30;
+    detailRow++;
+   });
+   detailRow+=2;
+  });
+  dash.mergeCells(`B${detailRow}:F${detailRow}`);
+  const source=dash.getCell(detailRow,2);
+  source.value='Source: https://007-operations-portal.vercel.app/portal';
+  source.font={name:'Arial',size:9,color:{argb:'FF566B83'}};
+  source.alignment={horizontal:'left',vertical:'middle'};
+
+
   const buffer=await wb.xlsx.writeBuffer();
   const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='007-Housing-Dashboard-'+todayStamp()+'.xlsx';
+  a.download='007-Housing-Dashboard-LTR-'+todayStamp()+'.xlsx';
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   toast('تم تنزيل ملخص السكن Excel ✅');
