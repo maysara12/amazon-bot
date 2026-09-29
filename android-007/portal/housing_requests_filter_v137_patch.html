@@ -1,25 +1,30 @@
 <style id="housingRequestsFilterV137Style">
 .hh137-filterbar{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 13px;padding:10px;background:#081624;border:1px solid #1f344d;border-radius:12px}
-.hh137-filterbar button{border:1px solid #2b425f;background:#102238;color:#cbd6e2;border-radius:9px;padding:7px 11px;font-weight:700;font-size:12px}
+.hh137-filterbar button,.hh137-daybar button{border:1px solid #2b425f;background:#102238;color:#cbd6e2;border-radius:9px;padding:7px 11px;font-weight:700;font-size:12px}
 .hh137-filterbar button.active{background:#d8b25c;color:#07111f;border-color:#d8b25c}
 .hh137-filterbar button.clean{border-color:#2f6a51;color:#9fe0bc;margin-inline-start:auto}.hh137-filterbar button.clean:hover{background:#15392b}
 .hh137-filterbar small{display:flex;align-items:center;color:#7f93aa}
-@media(max-width:720px){.hh137-filterbar{gap:6px}.hh137-filterbar button{flex:1;min-width:42%;white-space:nowrap}.hh137-filterbar button.clean{margin-inline-start:0}.hh137-filterbar small{width:100%;justify-content:center;margin:2px 0 0}}
+.hh137-daybar{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:12px;padding:11px;background:#0b1d30;border:1px solid #29435f;border-radius:12px;font-size:12px;color:#cbd6e2}
+.hh137-daybar[hidden]{display:none}.hh137-daybar input{color-scheme:dark;background:#071522;color:#fff;border:1px solid #35506e;border-radius:8px;padding:8px;font:13px Tahoma,Arial;direction:ltr}.hh137-daybar small{color:#90a5bd;flex-basis:100%}
+.hh137-summary{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px;border:1px solid #223b58;border-radius:12px;background:#0a1b2c}.hh137-summary span{padding:6px 10px;color:#a9bdd2;font-size:12px}.hh137-summary b{color:#f1cf79}.hh137-export{margin-inline-start:auto;border:1px solid #967437;background:#d8b25c;color:#07111f;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer}.hh137-export:disabled{opacity:.6;cursor:wait}
+@media(max-width:720px){.hh137-filterbar{gap:6px}.hh137-filterbar button{flex:1;min-width:42%;white-space:nowrap}.hh137-filterbar button.clean{margin-inline-start:0}.hh137-filterbar small{width:100%;justify-content:center;margin:2px 0 0}.hh137-export{width:100%;margin:0}.hh137-daybar input{max-width:100%}}
 </style>
-<script id="housingRequestsFilterV137Script" data-version="1.5.7">
+<script id="housingRequestsFilterV137Script" data-version="1.6.2">
 (function(){
 'use strict';
 if(window.__housingRequestsFilterV157)return;window.__housingRequestsFilterV157=true;
 const PREF='007_housing_requests_clean_v1';
-let mode='PENDING',busy=false;
-const labelMap={PENDING:'المعلقة فقط',IN:'دخول معلّق',OUT:'خروج معلّق',ARCHIVE:'الأرشيف'};
+let mode='PENDING',busy=false,archiveDay='';
+const labelMap={PENDING:'المعلقة فقط',IN:'دخول معلّق',OUT:'خروج معلّق',APPROVED:'المعتمدة',ARCHIVE:'الأرشيف'};
 function requestPanel(){const root=document.getElementById('hh132Body');if(!root)return null;return [...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='طلبات الدخول والخروج')||null}
 function cardMeta(card){
- const txt=card.textContent||'';
- const type=txt.includes('طلب دخول')?'IN':txt.includes('طلب خروج')?'OUT':'';
- const pending=txt.includes('قيد المراجعة');
- const approved=txt.includes('تم الاعتماد'),rejected=txt.includes('مرفوض'),cancelled=txt.includes('ملغي');
- return {type,pending,closed:approved||rejected||cancelled};
+ const rows=card.querySelectorAll(':scope > .hh132-row');
+ const title=rows[0]?.querySelector('b')?.textContent||'';
+ const status=rows[0]?.querySelector('.hh132-badge')?.textContent.trim()||'';
+ const type=title.startsWith('طلب دخول')?'IN':title.startsWith('طلب خروج')?'OUT':'';
+ const pending=status==='قيد المراجعة',approved=status==='تم الاعتماد',rejected=status==='مرفوض',cancelled=status==='ملغي';
+ const match=(rows[1]?.textContent||'').match(/\b(\d{4}-\d{2}-\d{2})\b/);
+ return {type,pending,approved,closed:approved||rejected||cancelled,day:match?match[1]:''};
 }
 function cleanCompleted(){
  try{localStorage.setItem(PREF,'1')}catch(_){}
@@ -27,6 +32,7 @@ function cleanCompleted(){
  const n=cards.filter(c=>cardMeta(c).closed).length;apply();
  if(typeof toast==='function')toast(n?`تم تنظيف ${n} طلب مكتمل ✅ — محفوظين في الأرشيف`:'القائمة نظيفة بالفعل ✅');
 }
+function selectedDay(){return ['ARCHIVE','APPROVED'].includes(mode)?archiveDay:'';}
 function apply(){
  if(busy)return;busy=true;
  try{
@@ -35,26 +41,161 @@ function apply(){
   let bar=panel.querySelector(':scope > .hh137-filterbar');
   if(!bar){
    bar=document.createElement('div');bar.className='hh137-filterbar';
-   bar.innerHTML='<button data-hh137="PENDING">المعلقة فقط</button><button data-hh137="IN">دخول</button><button data-hh137="OUT">خروج</button><button data-hh137="ARCHIVE">الأرشيف</button><button class="clean" data-hh137-clean>✓ تنظيف المكتمل</button><small data-hh137-count></small>';
+   bar.innerHTML='<button type="button" data-hh137="PENDING">المعلقة فقط</button><button type="button" data-hh137="IN">دخول</button><button type="button" data-hh137="OUT">خروج</button><button type="button" data-hh137="APPROVED">المعتمدة</button><button type="button" data-hh137="ARCHIVE">الأرشيف</button><button type="button" class="clean" data-hh137-clean>✓ تنظيف المكتمل</button><small data-hh137-count></small>';
    panel.querySelector('.panel-head')?.insertAdjacentElement('afterend',bar);
    bar.querySelectorAll('[data-hh137]').forEach(b=>b.onclick=()=>{mode=b.dataset.hh137;apply()});
    bar.querySelector('[data-hh137-clean]').onclick=cleanCompleted;
   }
-  let shown=0;
+  let datebar=panel.querySelector(':scope > .hh137-daybar');
+  if(!datebar){
+   datebar=document.createElement('div');datebar.className='hh137-daybar';
+   datebar.innerHTML='<label>يوم الدخول / الخروج الفعلي <input type="date" data-hh137-day aria-label="يوم الدخول أو الخروج الفعلي"></label><button type="button" data-hh137-day-clear>كل الأيام</button><small>اختيار اليوم حسب التاريخ الفعلي المكتوب في الطلب، وليس تاريخ تقديمه أو الموافقة عليه. بدون تاريخ تظهر كل الأيام.</small>';
+   bar.insertAdjacentElement('afterend',datebar);
+   const input=datebar.querySelector('[data-hh137-day]');input.value=archiveDay;
+   input.onchange=()=>{archiveDay=input.value;apply();};datebar.querySelector('[data-hh137-day-clear]').onclick=()=>{archiveDay='';input.value='';apply();};
+  }
+  datebar.hidden=!['ARCHIVE','APPROVED'].includes(mode);
+  let summary=panel.querySelector(':scope > .hh137-summary');
+  if(!summary){
+   summary=document.createElement('div');summary.className='hh137-summary';summary.innerHTML='<span>ملخص المعتمد: <b data-hh137-total>0</b></span><span>دخول: <b data-hh137-ins>0</b></span><span>خروج: <b data-hh137-outs>0</b></span><button type="button" class="hh137-export" data-hh137-export>⬇ ملخص السكن والطلبات Excel</button>';
+   datebar.insertAdjacentElement('afterend',summary);summary.querySelector('[data-hh137-export]').onclick=e=>{if(window.hhHousingReportV162)window.hhHousingReportV162.exportReport(e.currentTarget,{day:selectedDay()});else if(typeof toast==='function')toast('حدّث الصفحة لتحميل تقرير السكن',true);};
+  }
+  let shown=0,approvedCount=0,ins=0,outs=0;const day=selectedDay();
   cards.forEach(card=>{
-   const m=cardMeta(card);
-   const show=(mode==='PENDING'&&m.pending)||(mode==='IN'&&m.pending&&m.type==='IN')||(mode==='OUT'&&m.pending&&m.type==='OUT')||(mode==='ARCHIVE'&&m.closed);
+   const m=cardMeta(card),dateOk=!day||m.day===day;
+   if(m.approved&&dateOk){approvedCount++;if(m.type==='IN')ins++;if(m.type==='OUT')outs++;}
+   const show=(mode==='PENDING'&&m.pending)||(mode==='IN'&&m.pending&&m.type==='IN')||(mode==='OUT'&&m.pending&&m.type==='OUT')||(mode==='APPROVED'&&m.approved&&dateOk)||(mode==='ARCHIVE'&&m.closed&&dateOk);
    const wanted=show?'':'none';if(card.style.display!==wanted)card.style.display=wanted;if(show)shown++;
   });
+  summary.querySelector('[data-hh137-total]').textContent=approvedCount;summary.querySelector('[data-hh137-ins]').textContent=ins;summary.querySelector('[data-hh137-outs]').textContent=outs;
+  summary.querySelector('[data-hh137-export]').title=day?'الطلبات المعتمدة بتاريخ '+day+' + السكان الحاليون':'كل الطلبات المعتمدة + السكان الحاليون';
   bar.querySelectorAll('[data-hh137]').forEach(b=>b.classList.toggle('active',b.dataset.hh137===mode));
-  const count=bar.querySelector('[data-hh137-count]'),txt=`${labelMap[mode]}: ${shown}`;if(count&&count.textContent!==txt)count.textContent=txt;
+  const count=bar.querySelector('[data-hh137-count]'),txt=`${labelMap[mode]}: ${shown}${day?' — '+day:''}`;if(count&&count.textContent!==txt)count.textContent=txt;
   let empty=panel.querySelector(':scope > .hh137-empty');
-  if(!shown&&cards.length){if(!empty){empty=document.createElement('div');empty.className='empty hh137-empty';panel.appendChild(empty)}const t=mode==='ARCHIVE'?'لا توجد طلبات مكتملة في الأرشيف':'لا توجد طلبات معلقة';if(empty.textContent!==t)empty.textContent=t}else empty?.remove();
+  if(!shown&&cards.length){if(!empty){empty=document.createElement('div');empty.className='empty hh137-empty';panel.appendChild(empty)}const t=day?'لا توجد طلبات مطابقة لهذا اليوم':mode==='ARCHIVE'?'لا توجد طلبات مكتملة في الأرشيف':mode==='APPROVED'?'لا توجد طلبات معتمدة':'لا توجد طلبات معلقة';if(empty.textContent!==t)empty.textContent=t}else empty?.remove();
  }finally{busy=false}
 }
 function schedule(){setTimeout(apply,80);setTimeout(apply,300)}
 document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(t?.closest('[data-hht]'))schedule()},true);
 const prevRefresh=window.refreshAll;if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);schedule();return r};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(apply,350);setTimeout(apply,900)},{once:true});else{setTimeout(apply,250);setTimeout(apply,750)}
+})();
+</script>
+<script id="housingReportV162Script" data-version="1.6.2">
+// Read-only reporting. All reads use the portal's authenticated API and existing RLS.
+(function(){
+'use strict';
+if(window.hhHousingReportV162)return;
+const TZ='Africa/Cairo';
+let exporting=false,excelPromise=null;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dayFormat=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+function parts(value){const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return Object.fromEntries(dayFormat.formatToParts(d).map(p=>[p.type,p.value]));}
+function dayKey(value){if(!value)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return String(value);const p=parts(value);return p?`${p.year}-${p.month}-${p.day}`:'';}
+function excelDate(value,time=false){if(!value)return null;if(!time&&/^\d{4}-\d{2}-\d{2}$/.test(String(value)))return new Date(value+'T00:00:00Z');const p=parts(value);return p?new Date(Date.UTC(+p.year,+p.month-1,+p.day,time?+p.hour:0,time?+p.minute:0,time?+p.second:0)):null;}
+const dateLabel=v=>v?String(v).split('-').reverse().join('/'):'كل التواريخ';
+function zone(){return (typeof zones!=='undefined'?zones:[]).find(z=>z.code==='HURGHADA'||z.name_ar==='الغردقة'||String(z.name_en||'').toLowerCase()==='hurghada');}
+function notify(message,bad=false){if(typeof toast==='function')toast(message,bad);}
+async function readAll(query){
+ const out=[],ids=new Set(),size=200;
+ for(let offset=0;offset<50000;offset+=size){
+  const page=await window.api(query+'&limit='+size+'&offset='+offset);
+  if(!Array.isArray(page))throw new Error('استجابة بيانات غير صالحة؛ لم يتم إنشاء تقرير ناقص');
+  for(const row of page){if(ids.has(row.id))throw new Error('تغيرت البيانات أثناء التصدير؛ حدّث الصفحة وحاول مرة أخرى');ids.add(row.id);out.push(row);}
+  if(page.length<size)return out;
+ }
+ throw new Error('عدد السجلات كبير؛ اختر يومًا محددًا للتقرير');
+}
+async function excel(){
+ if(window.ExcelJS)return window.ExcelJS;
+ if(excelPromise)return excelPromise;
+ excelPromise=new Promise((resolve,reject)=>{
+  const s=document.createElement('script');let timer;
+  const fail=()=>{clearTimeout(timer);s.remove();excelPromise=null;reject(new Error('تعذر تحميل Excel؛ راجع الإنترنت وحاول مرة أخرى'));};
+  s.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  s.onload=()=>{clearTimeout(timer);if(window.ExcelJS)resolve(window.ExcelJS);else fail();};s.onerror=fail;
+  timer=setTimeout(fail,25000);document.head.appendChild(s);
+ });return excelPromise;
+}
+function styles(sheet){sheet.properties.defaultRowHeight=22;sheet.views=[{rightToLeft:false,showGridLines:false}];sheet.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};sheet.headerFooter={oddFooter:'007 Operations Hub | &P / &N'};}
+function cell(sheet,r,c,value,kind='body',align='left'){
+ const x=sheet.getCell(r,c);x.value=value;
+ const colors={title:['FF0B1B2D','FFF1CF79'],head:['FFE0B958','FF07111F'],body:['FFF6F8FB','FF172B43'],alt:['FFEDF2F7','FF172B43'],kpi:['FF10263E','FFFFFFFF'],note:['FFFFFFFF','FF63758B']};
+ const [bg,fg]=colors[kind]||colors.body;
+ x.font={name:'Arial',size:kind==='title'?16:kind==='kpi'?20:11,bold:['title','head','kpi'].includes(kind),color:{argb:fg}};
+ x.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}};x.alignment={horizontal:align,vertical:'middle',wrapText:true};return x;
+}
+function merged(sheet,row,start,end,value,kind='title',height=32){sheet.mergeCells(row,start,row,end);const x=cell(sheet,row,start,value,kind);sheet.getRow(row).height=height;return x;}
+function formula(sheet,r,c,f,result,kind='body',fmt='0'){const x=cell(sheet,r,c,{formula:f,result},kind,'center');x.numFmt=fmt;return x;}
+function textId(sheet,r,c,value,kind='body'){const x=cell(sheet,r,c,String(value??''),kind,'center');x.numFmt='@';x.alignment.readingOrder='ltr';return x;}
+function buildWorkbook(ExcelJS,data,day,now){
+ const {units,stays,requests}=data,um=new Map(units.map(u=>[u.id,u])),sm=new Map(stays.map(s=>[s.id,s]));
+ const links=new Map();stays.forEach(s=>{if(s.check_in_request_id)links.set(s.check_in_request_id,s);if(s.check_out_request_id)links.set(s.check_out_request_id,s);});
+ const unitFor=r=>r.unit_id||sm.get(r.stay_id)?.unit_id||links.get(r.id)?.unit_id||'';
+ const unitName=id=>um.get(id)?.name||(id?'شقة غير متاحة ضمن الصلاحيات':'غير محددة');
+ const active=stays.filter(s=>s.status==='ACTIVE').sort((a,b)=>unitName(a.unit_id).localeCompare(unitName(b.unit_id),'ar')||a.rider_name.localeCompare(b.rider_name,'ar'));
+ const approved=requests.filter(r=>r.status==='APPROVED'&&(!day||r.effective_date===day)).map(r=>({...r,report_unit_id:unitFor(r)})).sort((a,b)=>String(b.effective_date||'').localeCompare(String(a.effective_date||''))||unitName(a.report_unit_id).localeCompare(unitName(b.report_unit_id),'ar')||a.rider_name.localeCompare(b.rider_name,'ar'));
+ const aptIds=new Set([...units.filter(u=>u.status==='ACTIVE').map(u=>u.id),...active.map(s=>s.unit_id)]);
+ const apartments=[...aptIds].sort((a,b)=>unitName(a).localeCompare(unitName(b),'ar'));
+ const reportUnits=[...new Set(approved.map(r=>r.report_unit_id))].sort((a,b)=>unitName(a).localeCompare(unitName(b),'ar'));
+ const ins=approved.filter(r=>r.request_type==='CHECK_IN').length,outs=approved.filter(r=>r.request_type==='CHECK_OUT').length;
+ const wb=new ExcelJS.Workbook();wb.creator='007 Operations Hub';wb.company='Zero Zero Seven';wb.created=now;wb.calcProperties={fullCalcOnLoad:true};
+ const dash=wb.addWorksheet('Dashboard'),res=wb.addWorksheet('Residents'),sum=wb.addWorksheet('Requests Summary'),req=wb.addWorksheet('Approved Requests');
+ [dash,res,sum,req].forEach(styles);
+ const generated=dayFormat.format(now),scope=day?'الطلبات بتاريخ الحركة: '+dateLabel(day):'الطلبات المعتمدة: كل التواريخ';
+ for(const s of [dash,sum]){s.columns=[{width:3},{width:28},{width:17},{width:17},{width:17},{width:20},{width:3}];merged(s,2,2,6,s===dash?'007 — ملخص السكن والطلبات':'007 — ملخص الطلبات المعتمدة','title',40);merged(s,4,2,6,scope+' | '+generated+' — توقيت القاهرة','note',30);}
+ // Current resident snapshot: retained regardless of the request-date filter.
+ res.columns=[{width:28},{width:45},{width:17},{width:18},{width:18},{width:38,hidden:true}];
+ ['الشقة','اسم المندوب','Rider ID','تاريخ الدخول','مدة الإقامة (يوم)','معرف الشقة'].forEach((h,i)=>cell(res,1,i+1,h,'head','center'));res.getRow(1).height=28;
+ const today=dayKey(now);cell(res,1,8,'تاريخ التقرير','note');cell(res,2,8,excelDate(today),'note').numFmt='dd/mm/yyyy';res.getColumn(8).hidden=true;
+ active.forEach((s,i)=>{const r=i+2,k=i%2?'alt':'body';cell(res,r,1,unitName(s.unit_id),k);cell(res,r,2,s.rider_name,k);textId(res,r,3,s.rider_id,k);cell(res,r,4,excelDate(s.check_in_date),k,'center').numFmt='dd/mm/yyyy';const days=s.check_in_date?Math.max(1,Math.floor((Date.parse(today)-Date.parse(s.check_in_date))/86400000)+1):null;formula(res,r,5,`IF(D${r}="","",MAX(1,$H$2-D${r}+1))`,days,k);textId(res,r,6,s.unit_id,k);res.getRow(r).height=36;});
+ res.views=[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:1}];res.autoFilter='A1:E'+Math.max(1,active.length+1);
+ // Approved history only; missing/pending/rejected/cancelled records never enter this sheet.
+ req.columns=[{width:13},{width:44},{width:17},{width:28},{width:20},{width:23},{width:23},{width:16},{width:38},{width:38,hidden:true}];
+ merged(req,2,1,9,'007 — تفاصيل طلبات الدخول والخروج المعتمدة','title',38);merged(req,4,1,9,scope+' | التواريخ الزمنية بتوقيت القاهرة؛ تاريخ الحركة مستقل عن تاريخ الموافقة','note',32);
+ ['نوع الطلب','اسم المندوب','Rider ID','الشقة','تاريخ الدخول/الخروج','تاريخ تقديم الطلب','تاريخ الاعتماد','الحالة','رقم الطلب','معرف الشقة'].forEach((h,i)=>cell(req,6,i+1,h,'head','center'));req.getRow(6).height=32;
+ approved.forEach((q,i)=>{const r=i+7,k=i%2?'alt':'body';cell(req,r,1,q.request_type==='CHECK_IN'?'دخول':'خروج',k,'center');cell(req,r,2,q.rider_name,k);textId(req,r,3,q.rider_id,k);cell(req,r,4,unitName(q.report_unit_id),k);cell(req,r,5,excelDate(q.effective_date),k,'center').numFmt='dd/mm/yyyy';cell(req,r,6,excelDate(q.created_at,true),k,'center').numFmt='dd/mm/yyyy hh:mm';cell(req,r,7,excelDate(q.reviewed_at,true),k,'center').numFmt='dd/mm/yyyy hh:mm';cell(req,r,8,'تم الاعتماد',k,'center');textId(req,r,9,q.id,k);textId(req,r,10,q.report_unit_id||'UNASSIGNED',k);req.getRow(r).height=38;});
+ if(!approved.length)merged(req,7,1,9,'لا توجد طلبات معتمدة في النطاق المختار','note');
+ req.views=[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:6}];req.autoFilter='A6:I'+Math.max(6,approved.length+6);
+ const last=Math.max(7,approved.length+6),typeRange=`'Approved Requests'!$A$7:$A$${last}`,idRange=`'Approved Requests'!$J$7:$J$${last}`;
+ [['B6','طلبات معتمدة'],['C6','دخول معتمد'],['D6','خروج معتمد']].forEach(([a,v])=>cell(sum,6,a.charCodeAt(0)-64,v,'head','center'));
+ formula(sum,7,2,'SUM(C7:D7)',approved.length,'kpi');formula(sum,7,3,`COUNTIF(${typeRange},"دخول")`,ins,'kpi');formula(sum,7,4,`COUNTIF(${typeRange},"خروج")`,outs,'kpi');sum.getRow(7).height=36;
+ merged(sum,9,2,6,'عدد الطلبات يمثل حركات معتمدة، وليس عدد الساكنين الحاليين أو عدد مناديب فريدًا.','note',32);
+ ['الشقة','دخول','خروج','الإجمالي'].forEach((v,i)=>cell(sum,11,i+2,v,'head','center'));
+ reportUnits.forEach((id,i)=>{const r=i+12,k=i%2?'alt':'body',rows=approved.filter(q=>q.report_unit_id===id),ci=rows.filter(q=>q.request_type==='CHECK_IN').length,co=rows.length-ci;cell(sum,r,2,unitName(id),k);textId(sum,r,7,id||'UNASSIGNED',k);formula(sum,r,3,`COUNTIFS(${idRange},G${r},${typeRange},"دخول")`,ci,k);formula(sum,r,4,`COUNTIFS(${idRange},G${r},${typeRange},"خروج")`,co,k);formula(sum,r,5,`SUM(C${r}:D${r})`,rows.length,k);sum.getRow(r).height=30;});sum.getColumn(7).hidden=true;
+ if(!reportUnits.length)merged(sum,12,2,6,'لا توجد طلبات معتمدة في النطاق المختار','note');
+ let sr=Math.max(13,reportUnits.length+13)+2;merged(sum,sr++,2,6,'الطلبات حسب تاريخ الدخول/الخروج الفعلي');['التاريخ','دخول','خروج','الإجمالي'].forEach((v,i)=>cell(sum,sr,i+2,v,'head','center'));sr++;
+ [...new Set(approved.map(q=>q.effective_date))].sort().forEach(dayValue=>{const rows=approved.filter(q=>q.effective_date===dayValue),ci=rows.filter(q=>q.request_type==='CHECK_IN').length,co=rows.length-ci;cell(sum,sr,2,excelDate(dayValue),'body','center').numFmt='dd/mm/yyyy';const range=`'Approved Requests'!$E$7:$E$${last}`;formula(sum,sr,3,`COUNTIFS(${range},B${sr},${typeRange},"دخول")`,ci);formula(sum,sr,4,`COUNTIFS(${range},B${sr},${typeRange},"خروج")`,co);formula(sum,sr,5,`SUM(C${sr}:D${sr})`,rows.length);sr++;});
+ // Existing dashboard arrangement, extended with approved-request KPI cards.
+ const activeEnd=Math.max(2,active.length+1),aptCounts=new Map(apartments.map(id=>[id,active.filter(s=>s.unit_id===id).length]));
+ const known=apartments.every(id=>Number.isFinite(Number(um.get(id)?.capacity))&&Number(um.get(id)?.capacity)>0),cap=known?apartments.reduce((n,id)=>n+Number(um.get(id).capacity),0):null,available=known?apartments.reduce((n,id)=>n+Math.max(0,Number(um.get(id).capacity)-aptCounts.get(id)),0):null;
+ ['إجمالي الشقق','الساكنون حاليًا','السعة الإجمالية','الأماكن المتاحة','نسبة الإشغال'].forEach((h,i)=>cell(dash,6,i+2,h,'head','center'));
+ formula(dash,7,2,`COUNTA(G12:G${Math.max(12,apartments.length+11)})`,apartments.length,'kpi');formula(dash,7,3,`COUNTA(Residents!$C$2:$C$${activeEnd})`,active.length,'kpi');if(known){formula(dash,7,4,`SUM(C12:C${Math.max(12,apartments.length+11)})`,cap,'kpi');formula(dash,7,5,`SUM(E12:E${Math.max(12,apartments.length+11)})`,available,'kpi');}else{cell(dash,7,4,'غير مكتملة','kpi','center');cell(dash,7,5,'غير مكتملة','kpi','center');}if(known)formula(dash,7,6,'IFERROR(C7/D7,0)',cap?active.length/cap:0,'kpi','0%');else cell(dash,7,6,'—','kpi','center');dash.getRow(7).height=38;
+ merged(dash,9,2,6,'السكان: لقطة حالية عند التصدير. فلتر اليوم يخص الطلبات فقط.','note',30);
+ ['الشقة','السعة','الموجود','المتاح','نسبة الإشغال'].forEach((h,i)=>cell(dash,11,i+2,h,'head','center'));
+ apartments.forEach((id,i)=>{const r=i+12,k=i%2?'alt':'body',capacity=Number(um.get(id)?.capacity),hasCap=Number.isFinite(capacity)&&capacity>0,count=aptCounts.get(id);cell(dash,r,2,unitName(id),k);cell(dash,r,3,hasCap?capacity:'غير محددة',k,'center');textId(dash,r,7,id,k);formula(dash,r,4,`COUNTIF(Residents!$F$2:$F$${activeEnd},G${r})`,count,k);if(hasCap){formula(dash,r,5,`MAX(0,C${r}-D${r})`,Math.max(0,capacity-count),k);formula(dash,r,6,`IFERROR(D${r}/C${r},0)`,count/capacity,k,'0%');}else{cell(dash,r,5,'—',k);cell(dash,r,6,'—',k);}dash.getRow(r).height=30;});dash.getColumn(7).hidden=true;
+ let dr=apartments.length+14;merged(dash,dr++,2,6,'ملخص طلبات الدخول والخروج المعتمدة');['إجمالي المعتمد','دخول معتمد','خروج معتمد'].forEach((h,i)=>cell(dash,dr,i+2,h,'head','center'));dr++;
+ [approved.length,ins,outs].forEach((n,i)=>formula(dash,dr,i+2,`'Requests Summary'!${['B','C','D'][i]}7`,n,'kpi'));dash.getRow(dr).height=36;dr+=2;merged(dash,dr++,2,6,scope+' — التفاصيل في Approved Requests والتوزيع في Requests Summary','note',32);dr++;
+ merged(dash,dr++,2,6,'السكان حسب الشقة — الاسم و Rider ID');dr++;
+ apartments.forEach((id,i)=>{const people=active.filter(s=>s.unit_id===id),heading=dr;merged(dash,dr++,2,6,unitName(id)+' — '+people.length+' ساكن');dash.getCell(i+12,2).value={text:unitName(id),hyperlink:`#'Dashboard'!B${heading}`,tooltip:'عرض السكان'};dash.mergeCells(dr,3,dr,6);cell(dash,dr,2,'Rider ID','head','center');cell(dash,dr,3,'اسم المندوب','head');dr++;
+  if(!people.length)merged(dash,dr++,2,6,'لا يوجد ساكنون حاليًا','note');
+  people.forEach((p,j)=>{dash.mergeCells(dr,3,dr,6);textId(dash,dr,2,p.rider_id,j%2?'alt':'body');cell(dash,dr,3,p.rider_name,j%2?'alt':'body');dash.getRow(dr).height=String(p.rider_name).length>75?42:30;dr++;});dr+=2;
+ });
+ merged(dash,dr,2,6,'Source: https://007-operations-portal.vercel.app/portal','note',25);
+ dash.views=[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:5}];sum.views=[{rightToLeft:false,showGridLines:false,state:'frozen',ySplit:5}];
+ return wb;
+}
+async function exportReport(btn,options={}){
+ if(exporting)return;const z=zone();if(!z||typeof window.api!=='function')return notify('سجّل الدخول وافتح السكن أولًا',true);
+ const day=options.day||'';if(day&&!/^\d{4}-\d{2}-\d{2}$/.test(day))return notify('اختر يومًا صحيحًا',true);
+ exporting=true;const old=btn?.textContent;if(btn){btn.disabled=true;btn.textContent='جاري تجهيز ملخص السكن والطلبات…';}
+ try{
+  const zoneQuery='&zone_id=eq.'+encodeURIComponent(z.id),stamp=new Date();
+  const [ExcelJS,units,stays,requests]=await Promise.all([excel(),readAll('housing_units?select=id,name,capacity,status&order=id.asc'+zoneQuery),readAll('housing_stays?select=id,unit_id,rider_id,rider_name,check_in_date,status,check_in_request_id,check_out_request_id&order=id.asc'+zoneQuery),readAll('housing_requests?select=id,request_type,status,unit_id,stay_id,rider_id,rider_name,effective_date,created_at,reviewed_at&status=eq.APPROVED&order=id.asc'+zoneQuery+(day?'&effective_date=eq.'+day:''))]);
+  const wb=buildWorkbook(ExcelJS,{units,stays,requests},day,stamp),buffer=await wb.xlsx.writeBuffer();
+  const url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download='007-Housing-Dashboard-LTR-'+dayKey(stamp)+(day?'-Requests-'+day:'-All-Requests')+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('تم تنزيل ملخص السكن والطلبات المعتمدة ✅');
+ }catch(e){console.error('007 housing report',e);notify(e.message||'تعذر تجهيز التقرير؛ لم تتغير أي بيانات',true);}finally{exporting=false;if(btn?.isConnected){btn.disabled=false;btn.textContent=old;}}
+}
+window.hhHousingReportV162={exportReport,buildWorkbook,dayKey};
 })();
 </script>
