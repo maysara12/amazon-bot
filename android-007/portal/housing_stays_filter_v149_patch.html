@@ -1,7 +1,7 @@
 <style id="housingStaysFilterV149Style">
-.hh149-filter{margin:0 0 14px;padding:12px;background:linear-gradient(145deg,#0b1d30,#091827);border:1px solid #223b58;border-radius:15px;box-shadow:0 10px 28px #0002}.hh149-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.hh149-search{display:flex;align-items:center;gap:8px;min-width:260px;flex:1;background:#071522;border:1px solid #29435f;border-radius:11px;padding:0 11px}.hh149-search span{color:#d8b25c;font-size:18px}.hh149-search input{width:100%;height:40px;border:0;outline:0;background:transparent;color:#fff;font:13px Tahoma,Arial,sans-serif}.hh149-search input::placeholder{color:#71869f}.hh149-clear{border:1px solid #304a68;background:#10243a;color:#a9bdd2;border-radius:10px;padding:9px 12px;font-weight:700}.hh149-units{display:flex;gap:7px;overflow-x:auto;padding:10px 1px 3px;scrollbar-width:thin}.hh149-unit{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #2d4663;background:#0f2338;color:#c9d6e4;border-radius:999px;padding:8px 12px;font-weight:800;font-size:12px}.hh149-unit:hover{border-color:#6c5b32}.hh149-unit.active{background:#d8b25c;color:#07111f;border-color:#d8b25c}.hh149-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#ffffff12;color:inherit;font-size:11px}.hh149-unit.active .hh149-count{background:#07111f22}.hh149-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:7px;color:#8297ae;font-size:11px}.hh149-foot b{color:#e2c674}.hh149-empty{padding:24px;text-align:center;color:#8ea2b8;border:1px dashed #29415d;border-radius:12px;margin-top:10px;background:#081725}@media(max-width:720px){.hh149-filter{padding:10px}.hh149-search{min-width:100%;order:1}.hh149-clear{order:2}.hh149-units{margin-left:-2px;margin-right:-2px}.hh149-foot{display:block;line-height:1.8}.hh149-unit{padding:7px 10px}}
+.hh149-filter{margin:0 0 14px;padding:12px;background:linear-gradient(145deg,#0b1d30,#091827);border:1px solid #223b58;border-radius:15px;box-shadow:0 10px 28px #0002}.hh149-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.hh149-search{display:flex;align-items:center;gap:8px;min-width:260px;flex:1;background:#071522;border:1px solid #29435f;border-radius:11px;padding:0 11px}.hh149-search span{color:#d8b25c;font-size:18px}.hh149-search input{width:100%;height:40px;border:0;outline:0;background:transparent;color:#fff;font:13px Tahoma,Arial,sans-serif}.hh149-search input::placeholder{color:#71869f}.hh149-clear{border:1px solid #304a68;background:#10243a;color:#a9bdd2;border-radius:10px;padding:9px 12px;font-weight:700}.hh149-export{border:1px solid #8a6b28;background:linear-gradient(135deg,#c89d3e,#e3bc61);color:#07111f;border-radius:10px;padding:9px 13px;font-weight:900;box-shadow:0 6px 18px #0003}.hh149-export:disabled{opacity:.55;cursor:wait}.hh149-units{display:flex;gap:7px;overflow-x:auto;padding:10px 1px 3px;scrollbar-width:thin}.hh149-unit{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #2d4663;background:#0f2338;color:#c9d6e4;border-radius:999px;padding:8px 12px;font-weight:800;font-size:12px}.hh149-unit:hover{border-color:#6c5b32}.hh149-unit.active{background:#d8b25c;color:#07111f;border-color:#d8b25c}.hh149-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#ffffff12;color:inherit;font-size:11px}.hh149-unit.active .hh149-count{background:#07111f22}.hh149-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:7px;color:#8297ae;font-size:11px}.hh149-foot b{color:#e2c674}.hh149-empty{padding:24px;text-align:center;color:#8ea2b8;border:1px dashed #29415d;border-radius:12px;margin-top:10px;background:#081725}@media(max-width:720px){.hh149-filter{padding:10px}.hh149-search{min-width:100%;order:1}.hh149-clear{order:2}.hh149-units{margin-left:-2px;margin-right:-2px}.hh149-foot{display:block;line-height:1.8}.hh149-unit{padding:7px 10px}}
 </style>
-<script id="housingStaysFilterV149Script" data-version="1.4.9">
+<script id="housingStaysFilterV149Script" data-version="1.5.0">
 (function(){
 'use strict';
 if(window.__housingStaysFilterV149)return;window.__housingStaysFilterV149=true;
@@ -38,6 +38,164 @@ function applyFilter(){
  if(!shown&&rows.length){if(!empty){empty=document.createElement('div');empty.className='hh149-empty';empty.textContent='لا يوجد مندوبون مطابقون للفلتر الحالي';panel.appendChild(empty)}}else empty?.remove();
  panel.querySelectorAll('[data-hh149-unit]').forEach(b=>b.classList.toggle('active',b.dataset.hh149Unit===selectedUnit));
 }
+
+async function ensureExcelJS(){
+ if(window.ExcelJS)return window.ExcelJS;
+ if(window.__hh149ExcelPromise)return window.__hh149ExcelPromise;
+ window.__hh149ExcelPromise=new Promise((resolve,reject)=>{
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  s.onload=()=>window.ExcelJS?resolve(window.ExcelJS):reject(new Error('ExcelJS لم يتم تحميله'));
+  s.onerror=()=>reject(new Error('تعذر تحميل مكتبة Excel'));
+  document.head.appendChild(s);
+ });
+ return window.__hh149ExcelPromise;
+}
+function fileSafe(v){return String(v??'').replace(/[\\/:*?"<>|]+/g,'-').trim()}
+function todayStamp(){
+ const d=new Date(),p=n=>String(n).padStart(2,'0');
+ return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function stayDetail(tr){
+ const cells=tr.cells||[];
+ const m=rowMeta(tr);
+ return {
+  name:m.name,
+  rider:m.rider,
+  unit:m.unit,
+  checkIn:(cells[3]?.textContent||'').trim(),
+  duration:(cells[4]?.textContent||'').trim()
+ };
+}
+async function exportHousingDashboard(btn){
+ const panel=getPanel();if(!panel)return;
+ const rows=[...(panel.querySelector('.hh132-table tbody')?.rows||[])];
+ if(!rows.length)return toast('لا يوجد ساكنون حاليًا للتصدير',true);
+ const old=btn.textContent;btn.disabled=true;btn.textContent='جاري تجهيز Excel…';
+ try{
+  const ExcelJS=await ensureExcelJS();
+  let unitsData=[];
+  try{
+   const z=(typeof zones!=='undefined'?zones:[]).find(x=>x.code==='HURGHADA'||x.name_ar==='الغردقة'||String(x.name_en||'').toLowerCase()==='hurghada');
+   if(z)unitsData=await window.api('housing_units?select=id,name,capacity,status&zone_id=eq.'+z.id+'&status=eq.ACTIVE&order=name.asc');
+  }catch(e){console.warn('housing export units',e)}
+  const details=rows.map(stayDetail);
+  const countMap=new Map();
+  details.forEach(x=>countMap.set(x.unit,(countMap.get(x.unit)||0)+1));
+  const unitNames=new Set([...countMap.keys(),...(unitsData||[]).map(u=>u.name)]);
+  const units=[...unitNames].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ar'));
+  const capMap=new Map((unitsData||[]).map(u=>[u.name,Number(u.capacity||0)]));
+  const summary=units.map(name=>{
+    const occupied=countMap.get(name)||0,capacity=capMap.get(name)||occupied,available=Math.max(0,capacity-occupied);
+    return {name,capacity,occupied,available,rate:capacity?occupied/capacity:0};
+  });
+  const totalCapacity=summary.reduce((s,x)=>s+x.capacity,0);
+  const totalOccupied=summary.reduce((s,x)=>s+x.occupied,0);
+  const totalAvailable=Math.max(0,totalCapacity-totalOccupied);
+  const occupancy=totalCapacity?totalOccupied/totalCapacity:0;
+
+  const wb=new ExcelJS.Workbook();
+  wb.creator='007 Operations Hub';
+  wb.company='Zero Zero Seven';
+  wb.created=new Date();
+
+  const dash=wb.addWorksheet('Dashboard',{views:[{rightToLeft:true,showGridLines:false}]});
+  dash.properties.defaultRowHeight=20;
+  dash.columns=[
+   {key:'a',width:4},{key:'b',width:26},{key:'c',width:14},{key:'d',width:14},{key:'e',width:14},{key:'f',width:16},{key:'g',width:4}
+  ];
+  dash.mergeCells('B2:F3');
+  const title=dash.getCell('B2');title.value='007 OPERATIONS — HOUSING DASHBOARD';
+  title.font={name:'Arial',size:20,bold:true,color:{argb:'FFF1CF79'}};
+  title.alignment={horizontal:'center',vertical:'middle'};
+  title.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0B1B2D'}};
+  dash.getCell('B4').value='تاريخ التقرير';
+  dash.getCell('C4').value=new Date();
+  dash.getCell('C4').numFmt='dd/mm/yyyy';
+  dash.getCell('E4').value='سكن الغردقة';
+  ['B4','C4','E4'].forEach(a=>{const x=dash.getCell(a);x.font={bold:true,color:{argb:'FF566B83'}};x.alignment={horizontal:'center'}});
+
+  const kpis=[
+   ['B6','إجمالي الشقق',summary.length],
+   ['C6','إجمالي الساكنين',totalOccupied],
+   ['D6','السعة الإجمالية',totalCapacity],
+   ['E6','الأماكن المتاحة',totalAvailable],
+   ['F6','نسبة الإشغال',occupancy]
+  ];
+  kpis.forEach(([addr,label,val],idx)=>{
+    const cell=dash.getCell(addr);cell.value=label;cell.font={bold:true,color:{argb:'FF9FB1C5'}};cell.alignment={horizontal:'center'};
+    const valueCell=dash.getCell(addr.replace('6','7'));valueCell.value=val;
+    valueCell.font={bold:true,size:18,color:{argb:idx===4?'FFF1CF79':'FFFFFFFF'}};
+    valueCell.alignment={horizontal:'center'};
+    valueCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF10263E'}};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF10263E'}};
+    if(idx===4)valueCell.numFmt='0%';
+  });
+
+  const start=10;
+  const headers=['الشقة','السعة','الموجود','المتاح','نسبة الإشغال'];
+  dash.getRow(start).values=['',...headers];
+  dash.getRow(start).height=26;
+  for(let col=2;col<=6;col++){
+   const h=dash.getCell(start,col);h.font={bold:true,color:{argb:'FF07111F'}};h.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0B958'}};h.alignment={horizontal:'center'};
+  }
+  summary.forEach((u,i)=>{
+   const r=start+1+i;
+   dash.getCell(r,2).value=u.name;
+   dash.getCell(r,3).value=u.capacity;
+   dash.getCell(r,4).value=u.occupied;
+   dash.getCell(r,5).value=u.available;
+   dash.getCell(r,6).value=u.rate;
+   dash.getCell(r,6).numFmt='0%';
+   for(let col=2;col<=6;col++){
+    const cell=dash.getCell(r,col);
+    cell.alignment={horizontal:col===2?'right':'center',vertical:'middle'};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFF6F8FB':'FFEEF2F6'}};
+    cell.border={bottom:{style:'thin',color:{argb:'FFD7DEE8'}}};
+   }
+  });
+  dash.autoFilter={from:{row:start,column:2},to:{row:start+summary.length,column:6}};
+  dash.views=[{rightToLeft:true,showGridLines:false,state:'frozen',ySplit:10}];
+
+  const residents=wb.addWorksheet('Residents',{views:[{rightToLeft:true,showGridLines:false,state:'frozen',ySplit:2}]});
+  residents.columns=[
+   {header:'الشقة',key:'unit',width:25},
+   {header:'اسم المندوب',key:'name',width:42},
+   {header:'Rider ID',key:'rider',width:16},
+   {header:'تاريخ الدخول',key:'checkIn',width:16},
+   {header:'مدة الإقامة',key:'duration',width:18}
+  ];
+  const sorted=details.slice().sort((a,b)=>a.unit.localeCompare(b.unit,'ar')||a.name.localeCompare(b.name,'ar'));
+  sorted.forEach(x=>residents.addRow(x));
+  residents.getRow(1).height=28;
+  residents.getRow(1).eachCell(cell=>{
+   cell.font={bold:true,color:{argb:'FF07111F'}};
+   cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE0B958'}};
+   cell.alignment={horizontal:'center',vertical:'middle'};
+  });
+  residents.eachRow((row,rowNumber)=>{
+   if(rowNumber>1){
+    row.eachCell(cell=>{
+     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowNumber%2===0?'FFF8FAFC':'FFF0F4F8'}};
+     cell.border={bottom:{style:'thin',color:{argb:'FFE1E7EF'}}};
+     cell.alignment={vertical:'middle'};
+    });
+   }
+  });
+  residents.autoFilter='A1:E'+(sorted.length+1);
+
+  const buffer=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='007-Housing-Dashboard-'+todayStamp()+'.xlsx';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+  toast('تم تنزيل ملخص السكن Excel ✅');
+ }catch(e){console.error('housing dashboard export',e);toast(e.message||'تعذر تجهيز ملف Excel',true)}
+ finally{btn.disabled=false;btn.textContent=old}
+}
+
 function decorate(){
  if(busy)return;busy=true;
  try{
@@ -52,10 +210,11 @@ function decorate(){
    bar=document.createElement('div');bar.className='hh149-filter';
    panel.querySelector('.panel-head')?.insertAdjacentElement('afterend',bar);
   }
-  bar.innerHTML='<div class="hh149-top"><label class="hh149-search"><span>⌕</span><input data-hh149-search type="search" placeholder="بحث بالاسم أو Rider ID أو اسم الشقة"></label><button class="hh149-clear" data-hh149-clear>مسح الفلتر</button></div><div class="hh149-units" data-hh149-units></div><div class="hh149-foot"><span data-hh149-summary></span><span>اضغط على اسم الشقة لعرض سكانها فقط</span></div>';
+  bar.innerHTML='<div class="hh149-top"><label class="hh149-search"><span>⌕</span><input data-hh149-search type="search" placeholder="بحث بالاسم أو Rider ID أو اسم الشقة"></label><button class="hh149-clear" data-hh149-clear>مسح الفلتر</button><button class="hh149-export" data-hh149-export>⬇ تنزيل ملخص السكن Excel</button></div><div class="hh149-units" data-hh149-units></div><div class="hh149-foot"><span data-hh149-summary></span><span>اضغط على اسم الشقة لعرض سكانها فقط</span></div>';
   const input=bar.querySelector('[data-hh149-search]');input.value=searchTerm;
   input.addEventListener('input',()=>{searchTerm=input.value;applyFilter()});
   bar.querySelector('[data-hh149-clear]').onclick=()=>{selectedUnit='ALL';searchTerm='';input.value='';applyFilter()};
+  bar.querySelector('[data-hh149-export]').onclick=e=>exportHousingDashboard(e.currentTarget);
   const strip=bar.querySelector('[data-hh149-units]');
   const addChip=(name,label,count)=>{
    const b=document.createElement('button');b.type='button';b.className='hh149-unit';b.dataset.hh149Unit=name;
