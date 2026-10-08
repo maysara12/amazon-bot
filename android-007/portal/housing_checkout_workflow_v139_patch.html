@@ -1,7 +1,7 @@
 <style id="housingCheckoutV139Style">
 .hh139-preview{border:1px solid #315276;background:#0b2035;border-radius:13px;padding:12px 14px;margin:10px 0;line-height:1.9;color:#c7d6e7}.hh139-preview b{color:#f1cf79}.hh139-result{border-radius:12px;padding:11px 13px;margin:9px 0;border:1px solid #2a405b;background:#0a1a2b;line-height:1.8}.hh139-result.ok{border-color:#2f6a51;background:#0d2820;color:#b8efd1}.hh139-result.bad{border-color:#7b3540;background:#2b151a;color:#ffc1c7}.hh139-eval{margin-top:10px;padding:11px 13px;border:1px solid #2b425f;background:#081827;border-radius:12px;line-height:1.75}.hh139-eval.ok{border-color:#2f6a51}.hh139-eval.bad{border-color:#71333c}.hh139-eval .hh139-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}.hh139-eval .hh139-grid>div{background:#0c2034;border-radius:9px;padding:8px}.hh139-eval small{display:block;color:#8da1b9}.hh139-eval strong{display:block;margin-top:3px}.hh139-copy{margin-top:9px;border:1px solid #846d36;background:#342a14;color:#f1cf79;border-radius:9px;padding:7px 10px;font-weight:800}.hh139-required{color:#ffb5bd;font-weight:800}@media(max-width:720px){.hh139-eval .hh139-grid{grid-template-columns:1fr 1fr}}
 </style>
-<script id="housingCheckoutV139Script" data-version="1.5.7">
+<script id="housingCheckoutV139Script" data-version="1.6.4">
 (function(){
 'use strict';
 let checkoutMode=false,stayCache=null,preview=null,saving=false,decorating=false,scheduleTimer=null;
@@ -74,6 +74,32 @@ async function saveCheckout(){
 }
 function statementFor(r,a){const short=Math.max(num(a.target_hours)-num(a.actual_hours),0);return `بيان خصم سكن الغردقة — 007 Operations\nاسم المندوب: ${r.rider_name||'—'}\nRider ID: ${r.rider_id||'—'}\nتاريخ الخروج: ${arDate(r.effective_date)}\nفترة المحاسبة: ${arDate(a.period_start)} إلى ${arDate(a.period_end)}\nعدد الأيام: ${a.days_count}\nالتارجت المطلوب: ${num(a.target_hours).toFixed(2)} ساعة\nالساعات المحققة: ${num(a.actual_hours).toFixed(2)} ساعة\nالعجز: ${short.toFixed(2)} ساعة\nقيمة السكن عن الفترة: ${num(a.prorated_housing_fee).toFixed(2)} جنيه\nقيمة الخصم المطلوب: ${num(a.deduction_amount).toFixed(2)} جنيه\nالسبب: عدم تحقيق تارجت ساعات السكن للفترة المذكورة.`}
 async function copyStatement(id){const txt=statements.get(id);if(!txt)return toast('بيان الخصم غير جاهز',true);try{await navigator.clipboard.writeText(txt);toast('تم نسخ بيان الخصم للحسابات ✅')}catch(_){prompt('انسخ بيان الخصم:',txt)}}
+
+let proofUrls=[];
+function closeRequestProof(){byId('hh139ProofViewer')?.remove();proofUrls.forEach(u=>URL.revokeObjectURL(u));proofUrls=[]}
+async function openRequestProof(assessmentId){
+ closeRequestProof();
+ const modal=document.createElement('div');modal.id='hh139ProofViewer';modal.className='modal open';
+ modal.innerHTML='<div class="modal-card" style="width:min(1000px,95vw);max-height:90vh;overflow:auto"><div class="modal-head"><h3>إثبات ساعات طلب الخروج</h3><button class="close" data-hh139-proof-close aria-label="إغلاق">×</button></div><div data-hh139-proof-content>جاري تحميل الإثبات…</div></div>';
+ document.body.appendChild(modal);const body=modal.querySelector('[data-hh139-proof-content]');
+ try{
+  const files=await api('housing_evidence?select=id,storage_path,original_name,mime_type&assessment_id=eq.'+encodeURIComponent(assessmentId)+'&order=uploaded_at.asc');
+  if(!modal.isConnected)return;if(!files?.length){body.textContent='لا يوجد إثبات مرفوع لهذا الطلب';return}
+  body.textContent='';
+  for(const file of files){
+   const section=document.createElement('div');section.style.marginBottom='20px';section.textContent=file.original_name||'إثبات';body.appendChild(section);
+   const get=()=>fetch(SUPABASE_URL+'/storage/v1/object/authenticated/housing-evidence/'+file.storage_path.split('/').map(encodeURIComponent).join('/'),{headers:{apikey:API_KEY,Authorization:'Bearer '+session.access_token}});
+   let response=await get();if(response.status===401&&session?.refresh_token){await refreshToken();response=await get()}
+   if(!response.ok)throw new Error('تعذر تحميل الإثبات ('+response.status+')');
+   const blob=await response.blob();if(!modal.isConnected)return;const url=URL.createObjectURL(blob);proofUrls.push(url);
+   const type=file.mime_type||blob.type;
+   if(['image/jpeg','image/png','image/webp'].includes(type)){const img=document.createElement('img');img.src=url;img.alt=file.original_name||'إثبات الساعات';img.style.cssText='display:block;max-width:100%;height:auto;margin:12px auto';section.appendChild(img)}
+   else if(type==='application/pdf'){const frame=document.createElement('iframe');frame.src=url;frame.title=file.original_name||'إثبات PDF';frame.style.cssText='display:block;width:100%;height:65vh;border:0;margin-top:12px';section.appendChild(frame)}
+   const link=document.createElement('a');link.href=url;link.download=file.original_name||'proof';link.textContent='تنزيل الإثبات';link.className='hh132-btn blue';section.appendChild(link);
+  }
+ }catch(e){if(modal.isConnected){const error=document.createElement('p');error.textContent=e.message||'تعذر فتح الإثبات';error.style.color='#ffb3bb';body.appendChild(error)}}
+}
+
 async function decorateRequests(){
  const root=byId('hh132Body');if(!root||decorating)return;const panel=[...root.querySelectorAll('.panel')].find(p=>p.querySelector('.panel-head h3')?.textContent.trim()==='طلبات الدخول والخروج');if(!panel)return;const cards=[...panel.querySelectorAll(':scope > .hh132-card')];if(!cards.length)return;
  decorating=true;try{
@@ -84,6 +110,9 @@ async function decorateRequests(){
   cards.forEach((card,i)=>{const r=reqs[i];if(!r||r.request_type!=='CHECK_OUT'||!r.checkout_assessment_id)return;const a=amap.get(r.checkout_assessment_id);if(!a)return;let box=card.querySelector('.hh139-eval');if(!box){box=document.createElement('div');card.appendChild(box)}const hasProof=ev.some(x=>x.assessment_id===a.id);const actual=a.actual_hours==null?null:num(a.actual_hours),target=num(a.target_hours),short=actual==null?null:Math.max(target-actual,0),met=a.target_met===true;
    box.className='hh139-eval '+(actual==null?'':met?'ok':'bad');box.innerHTML=`<b>${actual==null?'⚠ الساعات الفعلية غير مسجلة':met?'✓ التارجت متحقق — لا يوجد خصم':'✕ التارجت غير متحقق — خصم مطلوب'}</b><div class="hh139-grid"><div><small>الفترة</small><strong>${arDate(a.period_start)} → ${arDate(a.period_end)}</strong></div><div><small>التارجت</small><strong>${target.toFixed(2)} س</strong></div><div><small>المحقق</small><strong>${actual==null?'—':actual.toFixed(2)+' س'}</strong></div><div><small>${met?'الخصم':'العجز / الخصم'}</small><strong>${actual==null?'—':met?'0.00 ج':short.toFixed(2)+' س / '+money(a.deduction_amount)}</strong></div></div><small style="margin-top:7px">${hasProof?'✓ سكرين الساعات مرفق':'⚠ سكرين الساعات غير مرفق'}</small>${actual!=null&&!met?`<button class="hh139-copy" data-hh139-copy="${r.id}">نسخ بيان الخصم للحسابات</button>`:''}`;
    if(actual!=null&&!met)statements.set(r.id,statementFor(r,a));
+   let actions=card.querySelector(':scope > .hh132-actions');if(!actions){actions=document.createElement('div');actions.className='hh132-actions';card.insertBefore(actions,box)}
+   actions.querySelector('[data-hh139-view-proof]')?.remove();
+   if(hasProof){const view=document.createElement('button');view.type='button';view.className='hh132-btn blue';view.dataset.hh139ViewProof=a.id;view.textContent='عرض الإثبات';actions.appendChild(view)}
    if(r.status==='PENDING'){const ok=card.querySelector('[data-ok]');if(ok){ok.disabled=actual==null||!hasProof;ok.title=ok.disabled?'لا يمكن الاعتماد قبل الساعات الفعلية وسكرين الإثبات':'اعتماد الخروج'}}
   });
  }catch(e){console.warn('decorate v139',e)}finally{decorating=false}
@@ -91,6 +120,8 @@ async function decorateRequests(){
 function schedule(delay=120){clearTimeout(scheduleTimer);scheduleTimer=setTimeout(()=>decorateRequests(),delay)}
 document.addEventListener('click',e=>{
  const t=e.target instanceof Element?e.target:null;if(!t)return;
+ const pv=t.closest('[data-hh139-view-proof]');if(pv){stop(e);openRequestProof(pv.dataset.hh139ViewProof);return}
+ const pc=t.closest('[data-hh139-proof-close]');if(pc||t.id==='hh139ProofViewer'){stop(e);closeRequestProof();return}
  const inp=t.closest('[data-in]');if(inp){checkoutMode=false;return}
  const out=t.closest('[data-out]');if(out){stop(e);openCheckout(out.dataset.out);return}
  const save=t.closest('#hh132ReqSave');if(save&&checkoutMode){stop(e);saveCheckout();return}
