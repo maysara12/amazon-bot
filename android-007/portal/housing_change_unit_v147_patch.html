@@ -94,6 +94,37 @@ async function saveDates(){
   setTimeout(()=>{document.querySelector('[data-hht="stays"]')?.click();decorate()},120);
  }catch(e){toast(e.message||'تعذر تعديل التواريخ',true)}finally{btn.disabled=false}
 }
+
+let identityStay=null,identitySaving=false;
+async function openIdentity(stayId){
+ if(!isAdmin())return toast('تعديل بيانات المندوب متاح للإدارة فقط',true);
+ try{
+ const arr=await api('housing_stays?select=id,rider_id,rider_name,status&id=eq.'+encodeURIComponent(stayId)+'&limit=1');
+ identityStay=arr?.[0];if(!identityStay||identityStay.status!=='ACTIVE')throw new Error('الإقامة غير موجودة أو غير نشطة');
+ if(!byId('hhIdentityModal')){
+ const modal=document.createElement('div');modal.id='hhIdentityModal';modal.className='modal';
+ modal.innerHTML='<div class="modal-card"><div class="modal-head"><h3>تعديل بيانات المندوب</h3><button class="close" id="hhIdentityClose" aria-label="إغلاق">×</button></div><form id="hhIdentityForm"><div class="field"><label for="hhIdentityName">اسم المندوب</label><input id="hhIdentityName" class="input" required minlength="2" maxlength="200"></div><div class="field"><label for="hhIdentityId">Rider ID</label><input id="hhIdentityId" class="input" dir="ltr" inputmode="numeric" required pattern="[0-9]{1,30}" maxlength="30"></div><div class="hh148-warning">التعديل لتصحيح بيانات نفس المندوب، ويُسجل في سجل التعديلات.</div><button id="hhIdentitySave" class="btn btn-primary wide" type="submit">حفظ بيانات المندوب</button></form></div>';
+ document.body.appendChild(modal);byId('hhIdentityClose').onclick=()=>{if(!identitySaving)modal.classList.remove('open')};
+ byId('hhIdentityForm').onsubmit=saveIdentity;
+ }
+ byId('hhIdentityName').value=identityStay.rider_name||'';byId('hhIdentityId').value=identityStay.rider_id||'';
+ byId('hhIdentityModal').classList.add('open');byId('hhIdentityName').focus();
+ }catch(e){toast(e.message||'تعذر تحميل بيانات المندوب',true)}
+}
+async function saveIdentity(e){
+ e.preventDefault();if(identitySaving||!identityStay)return;
+ const name=byId('hhIdentityName').value.trim(),id=byId('hhIdentityId').value.trim();
+ if(name.length<2||name.length>200||!/^[0-9]{1,30}$/.test(id))return toast('اكتب الاسم وID صحيح بالأرقام',true);
+ identitySaving=true;byId('hhIdentitySave').disabled=true;
+ try{
+ await api('rpc/housing_update_stay_identity',{method:'POST',body:JSON.stringify({p_stay_id:identityStay.id,p_rider_id:id,p_rider_name:name,p_expected_rider_id:identityStay.rider_id,p_expected_rider_name:identityStay.rider_name})});
+ byId('hhIdentityModal').classList.remove('open');identityStay=null;toast('تم تعديل اسم المندوب والـID ✅');
+ const filter=document.querySelector('#hh132Body [data-hh149-search]');if(filter){filter.value='';filter.dispatchEvent(new Event('input',{bubbles:true}))}
+ if(typeof window.refreshAll==='function')await window.refreshAll();
+ setTimeout(()=>{document.querySelector('[data-hht="stays"]')?.click();decorate()},120);
+ }catch(error){toast(error.message||'تعذر حفظ بيانات المندوب',true)}finally{identitySaving=false;byId('hhIdentitySave').disabled=false}
+}
+
 function decorate(){
  if(!isAdmin()||busy)return;busy=true;
  try{
@@ -105,12 +136,14 @@ function decorate(){
     if(!cell.querySelector('[data-hh148-dates]')){
       const b=document.createElement('button');b.className='hh132-btn hh148-dates';b.dataset.hh148Dates=out.dataset.out;b.textContent='تعديل التواريخ';cell.insertBefore(b,out);
     }
+    if(!cell.querySelector('[data-hh-identity]')){const b=document.createElement('button');b.type='button';b.className='hh132-btn hh148-dates';b.dataset.hhIdentity=out.dataset.out;b.textContent='تعديل بيانات المندوب';cell.insertBefore(b,out)}
     cell.style.display='flex';cell.style.gap='6px';cell.style.flexWrap='wrap';
   });
  }finally{busy=false}
 }
 document.addEventListener('click',e=>{
  const t=e.target instanceof Element?e.target:null;if(!t)return;
+ const identity=t.closest('[data-hh-identity]');if(identity){e.preventDefault();e.stopPropagation();openIdentity(identity.dataset.hhIdentity);return}
  const mv=t.closest('[data-hh147-move]');if(mv){e.preventDefault();e.stopPropagation();openMove(mv.dataset.hh147Move);return}
  const dt=t.closest('[data-hh148-dates]');if(dt){e.preventDefault();e.stopPropagation();openDates(dt.dataset.hh148Dates);return}
  if(t.closest('#hh147MoveSave')){e.preventDefault();e.stopPropagation();saveMove();return}
