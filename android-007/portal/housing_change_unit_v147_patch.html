@@ -4,7 +4,7 @@
 #hh147MoveInfo,#hh148DatesInfo{line-height:1.8}
 .hh148-warning{border-right:3px solid #d8b25c;background:#102238;border-radius:12px;padding:10px 12px;color:#c8d6e5;line-height:1.8;margin:10px 0}
 </style>
-<script id="housingChangeUnitV147Script" data-version="1.4.8">
+<script id="housingChangeUnitV147Script" data-version="1.6.5">
 (function(){
 'use strict';
 if(window.__housingChangeUnitV148)return;window.__housingChangeUnitV148=true;
@@ -152,6 +152,13 @@ document.addEventListener('click',e=>{
 },true);
 const prevRefresh=window.refreshAll;
 if(typeof prevRefresh==='function')window.refreshAll=async function(){const r=await prevRefresh.apply(this,arguments);setTimeout(decorate,120);return r};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(decorate,250),{once:true});else setTimeout(decorate,250);
+// Housing rows can render after login, refresh or tab switches.
+let decorateTimer;
+const scheduleIdentityButtons=()=>{clearTimeout(decorateTimer);decorateTimer=setTimeout(decorate,40)};
+const identityObserver=new MutationObserver(records=>{
+ if(records.some(r=>[...r.addedNodes].some(n=>n instanceof Element&&(n.matches('[data-out]')||n.querySelector('[data-out]')))))scheduleIdentityButtons();
+});
+identityObserver.observe(document.body,{childList:true,subtree:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleIdentityButtons,{once:true});else scheduleIdentityButtons();
 })();
 </script>
